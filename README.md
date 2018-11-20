@@ -1,6 +1,6 @@
 # biocomputing_StatsGroupProject
 
-This is a repo for the bioinformatics group project in BIOS30318/60318 at the
+This is a repo for the statiatics group project in BIOS30318/60318 at the
 University of Notre Dame. 
 
 When completed the students' forked repos should contain:
