@@ -1,0 +1,14 @@
+---
+title: "ANOVA and Regression Results"
+output: html_notebook
+---
+
+# PART 1 REGRESSION VS ANOVA
+
+This project will focus on the difference between linear models that use categorical or continuous predictor variables. When designing experiments, scientists are often limited by the number of experimental units they can use. These practical limitations may arise due to the cost of using animal subjects, the number of tanks available for aquatic mesocosm studies, or simply the number of hours in the day. This question will focus on the optimal use of these precious experimental units to increase our "statistical power" to detect the effect of
+a treatment.A experimental design question that arises when experimental units are limiting is whether to distribute the units amongst some number of replicated discrete treatment levels (ANOVA-design) or spread the experimental units along a continuous gradient of treatment levels (regression-design). In this project, we
+will first revisit ANOVA and regression analyses in two cases where it is clear what experimental design was chosen. We will then evaluate the ability of these two experimental designs to detect a treatment effect (i.e. their statistical power) using simulated data.
+
+An ANOVA-design and a regression-design experiment
+1) A student conducted an experiment evaluating the effect of three different new antibiotics on growth of E. coli in lab cultures. Using the data in antibiotics.txt, generate a plot that summarizes the results and test for an effect of antibiotic treatments on the growth of E. coli using an ANOVA-design linear model and
+likelihood ratio test
