@@ -6,18 +6,19 @@
 rm(list=ls()) # Clear workspace
 if(!is.null(dev.list())) dev.off() # Clear plots
 par(mfrow=c(1,1)) # Setup plot parameters
-par(ps = 20, font.lab = 1)
+par(ps = 12, font.lab = 1)
 set.seed(1) # set random seed generator for reproducibility
 
 # Let's load relevant libraries
 #library(MASS)
 #library(olsrr)
 #library(rcompanion)
-library(ggplot2)
 #library(gridExtra)
-library(CorReg)
 #source('~/FHplot.R', encoding = 'UTF-8')
 #source('~/symplot.R', encoding = 'UTF-8')
+library(ggplot2)
+library(ggpmisc)
+library(CorReg)
 source('~/extractPVal.R', encoding = 'UTF-8')
 cat("\014") # Clear console
 
@@ -55,7 +56,7 @@ nll_aov = function(p,x,y){
   return(nll)
 }
 
-# Define the initial guesses to be the means of the data set
+# Define the initial guesses to be the means of the data set as a good starting point
 initialGuess_aov=c(mean(antibioticsData$growth[1:4]),
                -mean(antibioticsData$growth[1:4])+mean(antibioticsData$growth[5:8]),
                -mean(antibioticsData$growth[1:4])+mean(antibioticsData$growth[9:12]),
@@ -66,12 +67,13 @@ nllAnova=optim(par=initialGuess_aov, fn=nll_aov, x=as.numeric(releveledTrt), y =
 
 # Create the simplified model
 simpleMod_aov = function(p,x,y){
+  # Define the parameters of the simple model
   b0=p[1]
   sigma=exp(p[2])
-  
+  # Define the function of the simple model
   expected=b0
+  # Compute the nll of the simple model
   nll=-sum(dnorm(x=y,mean=expected,sd=sigma,log=TRUE))
-  
   return(nll)
 }
 
@@ -81,7 +83,7 @@ simpleGuess_aov = c(mean(antibioticsData$growth[1:4]),1)
 # Optimize the simplified model
 nllSimple_aov = optim(par=simpleGuess_aov, fn=simpleMod_aov, x=as.numeric(releveledTrt), y = antibioticsData$growth)
 
-# Compute the F statistic
+# Compute the LR statistic
 teststat_aov = 2*(nllSimple_aov$value-nllAnova$value)
 
 # Compute the degrees of freedom
@@ -90,11 +92,11 @@ df_aov=length(nllAnova$par)-length(nllSimple_aov$par)
 # Compute the P value from the nll functions
 nllPVal_aov = 1-pchisq(teststat_aov,df_aov)
 
-# Fit using lm() in aov()
+# Fit using aov() that passes each group through lm()
 aov.fit = aov(growth ~ releveledTrt, data=antibioticsData)
 sum.aov = summary(aov.fit)
 
-# PValue from aov()
+# PValue from aov() using F statistic
 aovPVal=sum.aov[[1]][["Pr(>F)"]][1]
 
 # Parameters found from nll
@@ -107,18 +109,18 @@ aovParams = c(aov.fit$coefficients, sigma(aov.fit), aovPVal)
 comparison_aov = cbind(nllParams_aov, aovParams)
 dimnames(comparison_aov)[[1]]=c("Control", "Treatment 1", "Treatment 2", "Treatment 3", "Residual Std Error", "P Value")
 comparison_aov
+write.table(comparison_aov, "clipboard", sep="\t", row.names=FALSE)
 
 # 95% Confidence interval of the parameters 
-CI_AOV = confint(aov.fit)
+CI_AOV = confint(aov.fit, level = 0.95)
 dimnames(CI_AOV)[[1]]=c("Control", "Treatment 1", "Treatment 2", "Treatment 3")
 CI_AOV
 
 # Boxplot of the data comparing control versus treatment with 95% CI of the means for each group in red
 BoxPlot(antibioticsData$growth, 
         antibioticsData$trt, 
-        AnoVa = TRUE, ylab="Growth", 
-        names=c("Treatment 1", "Treatment 2", "Treatment 3", "Control"),
-        ylab="Growth of Bacteria")
+        AnoVa = TRUE, ylab="Growth of Bacteria", 
+        names=c("Treatment 1", "Treatment 2", "Treatment 3", "Control"))
 
 ##########################################################
 ##########################################################
@@ -157,7 +159,7 @@ simpleGuess_lin=c(1,1)
 # Optimize the simple model
 simpleFit=optim(par=simpleGuess_lin,fn=nllSimple_lin,x=sugarData$sugar,y=sugarData$growthSugar)
 
-# Compute the F statistic
+# Compute the LR statistic
 teststat_lin=2*(simpleFit$value-linearFit$value)
 
 # Compute the degrees of freedom
@@ -215,56 +217,60 @@ paramComparison = NULL
 
 # Loop over all sigma values
 for (nLevels in nLevelsVals){
-for (sigma in sigmaVals){
+  for (sigma in sigmaVals){
 
-# Linear Regression
-X=seq(minX,maxX,(maxX+1)/N) # Sequenced X values
-Xbar=mean(X) # Average of X's
-SSxx=sum((X-Xbar)^2) # Sum of squares for X's
+    # Linear Regression
+    X=seq(minX,maxX,(maxX+1)/N) # Sequenced X values
+    Xbar=mean(X) # Average of X's
+    SSxx=sum((X-Xbar)^2) # Sum of squares for X's
 
-# Linear Regression Matrices
-Y=matrix(rep(N*Nsim),nrow=N,ncol=Nsim) # Create our Y matrix
-coeff_matrix_lm=matrix(rep(2*Nsim),nrow=2,ncol=Nsim) # Create our coefficent matrix
-sigma_matrix_lm=matrix(rep(Nsim),nrow=1,ncol=Nsim) # Create our sigma matrix
-p_matrix_lm=matrix(rep(Nsim),nrow=1,ncol=Nsim) # Create our p value matrix
+    # Linear Regression Matrices
+    Y=matrix(rep(N*Nsim),nrow=N,ncol=Nsim) # Create our Y matrix
+    coeff_matrix_lm=matrix(rep(2*Nsim),nrow=2,ncol=Nsim) # Create our coefficent matrix
+    sigma_matrix_lm=matrix(rep(Nsim),nrow=1,ncol=Nsim) # Create our sigma matrix
+    p_matrix_lm=matrix(rep(Nsim),nrow=1,ncol=Nsim) # Create our p value matrix
 
-# Anova matrices
-coeff_matrix_aov=matrix(rep(nLevels*Nsim),nrow=nLevels,ncol=Nsim) # Create our coefficent matrix for aov
-sigma_matrix_aov=matrix(rep(Nsim),nrow=1,ncol=Nsim) # Create our sigma matrix for aov
-p_matrix_aov=matrix(rep(Nsim),nrow=1,ncol=Nsim) # Create our p value matrix for aov
+    # Anova matrices
+    coeff_matrix_aov=matrix(rep(nLevels*Nsim),nrow=nLevels,ncol=Nsim) # Create our coefficent matrix for aov
+    sigma_matrix_aov=matrix(rep(Nsim),nrow=1,ncol=Nsim) # Create our sigma matrix for aov
+    p_matrix_aov=matrix(rep(Nsim),nrow=1,ncol=Nsim) # Create our p value matrix for aov
 
-# running the simulations
-for (i in 1:Nsim){
-  epsilon=rnorm(N,mean=0,sd=sigma) # Normalized error
-  Y[,i]=beta0+beta1*X+epsilon  # Generate data points
-  mod=lm(Y[,i]~X) # Fit the data 
-  coeff_matrix_lm[,i]=mod$coefficients # Extract coefficients
-  sigma_matrix_lm[i]=summary(mod)$sigma # Extract sigmas
-  p_matrix_lm[i]=extractPVal(mod) # Extract P Value
+    # running the simulations
+    for (i in 1:Nsim){
+      epsilon=rnorm(N,mean=0,sd=sigma) # Normalized error
+      Y[,i]=beta0+beta1*X+epsilon  # Generate data points
+      
+      mod=lm(Y[,i]~X) # Fit the data using lm()
+      coeff_matrix_lm[,i]=mod$coefficients # Extract coefficients
+      sigma_matrix_lm[i]=summary(mod)$sigma # Extract sigmas
+      p_matrix_lm[i]=extractPVal(mod) # Extract P Value
   
-  anovaResults=data.frame(levels=rep(seq(0,nLevels-1,1),each=N/nLevels),YVal=c(rnorm(N/nLevels,beta0,sigma),rnorm(N/nLevels,beta0+beta1,sigma)))
-  aovMod = aov(anovaResults$YVal~as.factor(anovaResults$levels))
-  coeff_matrix_aov[,i]=aovMod$coefficients
-  sigma_matrix_aov[i]=sigma(aovMod)
-  p_matrix_aov[i]=summary(aovMod)[[1]][["Pr(>F)"]][1]
+      anovaResults=data.frame(levels=rep(seq(0,nLevels-1,1),each=N/nLevels),YVal=Y[,i])
+      aovMod = aov(anovaResults$YVal~as.factor(anovaResults$levels))
+      coeff_matrix_aov[,i]=aovMod$coefficients
+      sigma_matrix_aov[i]=sigma(aovMod)
+      p_matrix_aov[i]=summary(aovMod)[[1]][["Pr(>F)"]][1]
+    }
+
+    # Calculate the averages of the 100 simulations
+    averageb0_reg = mean(coeff_matrix_lm[1])
+    averageb1_reg = mean(coeff_matrix_lm[2])
+    averagep_reg = mean(p_matrix_lm)
+    significantP_reg = length(which(p_matrix_lm<0.05))
+
+    averageb0_aov = mean(coeff_matrix_aov[1])
+    averageb1_aov = mean(coeff_matrix_aov[2])
+    averagep_aov = mean(p_matrix_aov)
+    significantP_aov = length(which(p_matrix_aov<0.05))
+    
+    # Compare the two parameters and P Values
+    linearParameters = c(averageb0_reg, averageb1_reg,averagep_reg,significantP_reg)
+    anovaParameters = c(averageb0_aov, averageb1_aov,averagep_aov,significantP_aov)
+    comparison_III = cbind(linearParameters,anovaParameters)
+    dimnames(comparison_III)[[1]]=c("Beta 0", "Beta 1", "P Value","Num Significant P")
+    paramComparison = cbind(paramComparison, sigma, comparison_III)
+  }
 }
-
-# Calculate the averages of the 100 simulations
-averageb0_reg = mean(coeff_matrix_lm[1])
-averageb1_reg = mean(coeff_matrix_lm[2])
-averagep_reg = mean(p_matrix_lm)
-
-averageb0_aov = mean(coeff_matrix_aov[1])
-averageb1_aov = mean(coeff_matrix_aov[2])
-averagep_aov = mean(p_matrix_aov)
-
-# Compare the two parameters and P Values
-linearParameters = c(averageb0_reg, averageb1_reg,averagep_reg)
-anovaParameters = c(averageb0_aov, averageb1_aov,averagep_aov)
-comparison_III = cbind(linearParameters,anovaParameters)
-dimnames(comparison_III)[[1]]=c("Beta 0", "Beta 1", "P Value")
-paramComparison = cbind(paramComparison, sigma, comparison_III)
-}}
 
 twoLevelANOVA = cbind(paramComparison[,1:24])
 fourLevelANOVA = cbind(paramComparison[,25:48])
