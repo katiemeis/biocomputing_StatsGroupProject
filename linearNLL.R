@@ -1,20 +1,13 @@
-anovaNLL = function(x,y,nLevels){
-  # log likelihood function
-  
-  nll=function(p,x,y){
-    B = NULL
-    expected = NULL
-    for (i in 1:nLevels){
-      B[i] = p[i]  
-      expected = expected + B[i]*XX[i]
-    }
-    sigma=exp(p[nLevels+1])
-
+linearNLL = function(x,y){
+  # Linear log likelihood function
+  nllLinear=function(p,x,y){
+    B0=p[1] 
+    B1=p[2] 
+    sigma=exp(p[3])
     expected=B0+x*B1
     nll=-sum(dnorm(x=y,mean=expected,sd=sigma,log=TRUE))
     return(nll) 
   }  
-  
   # Initial guess for optimization
   initialGuess_lin=c(y[which(x==0)],
                      (mean(y)/mean(x)),
@@ -34,7 +27,7 @@ anovaNLL = function(x,y,nLevels){
   
   # Initial guess for simple model
   simpleGuess_lin=c(y[which(x==0)],1)
-  
+
   # Optimize the simple model
   simpleFit=optim(par=simpleGuess_lin,fn=nllSimple_lin,x=x,y=y)
   

@@ -295,7 +295,7 @@ for (nLevels in nLevelsVals){
       p_matrix_lm_nll[i]=mod_nll$pValue # Extract P Value
     
       anovaResults=data.frame(levels=rep(seq(0,nLevels-1,1),each=N/nLevels),YVal=Y[,i])
-      aovMod_nll = customNll(anovaResults$levels, anovaResults$YVal, nLevels)
+      aovMod_nll = customNll(anovaResults$levels, anovaResults$YVal, nLevels, N)
       coeff_matrix_aov_nll[,i]=aovMod_nll$coefficients
       sigma_matrix_aov_nll[i]=aovMod_nll$sigma
       p_matrix_aov_nll[i]=aovMod_nll$pValue

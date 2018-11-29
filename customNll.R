@@ -1,21 +1,22 @@
-customNll = function(x,y,nLevels){
+customNll = function(x,y,nLevels,nExpUnits){
   # custom log likelihood function
   
   nll=function(p,x,y){
     B = matrix(0, 1, nLevels)
     expected = 0
-    XX = matrix(0, 24, nLevels)
+    XX = matrix(0, nExpUnits, nLevels)
     
     for (j in 1:nLevels){
-      for (i in ((24*j/nLevels)-(nLevels+1)):(24*j/nLevels)){
+      for (i in ((nExpUnits*j/nLevels)-((nExpUnits/nLevels)-1)):(nExpUnits*j/nLevels)){
         XX[i,j] = 1
       }
     }
     
     #B0 to BN
-    for (i in 2:nLevels-1){
+    B[1] = p[1]
+    for (i in 2:nLevels){
       B[i] = p[i]  
-      expected = expected + B[i]*XX[,i+1]
+      expected = expected + B[i]*XX[,i]
     }
     expected = expected + B[1]
     
@@ -27,10 +28,10 @@ customNll = function(x,y,nLevels){
   
   # Initial guess for optimization
   initialGuess = matrix(0, 1, nLevels+1)
-  initialGuess[1] = mean(y[((24/nLevels)-((24/nLevels)-1)):(24/nLevels)])
+  initialGuess[1] = mean(y[((nExpUnits/nLevels)-((nExpUnits/nLevels)-1)):(nExpUnits/nLevels)])
   initialGuess[nLevels+1] = 1
   for (i in 2:nLevels){
-    initialGuess[i] = mean(y[((24*i/nLevels)-((24/nLevels)-1)):(i*24/nLevels)])-initialGuess[1]
+    initialGuess[i] = mean(y[((nExpUnits*i/nLevels)-((nExpUnits/nLevels)-1)):(i*nExpUnits/nLevels)])-initialGuess[1]
   }
   
   # Optimize the nll function
