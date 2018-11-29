@@ -20,8 +20,7 @@ library(ggplot2)
 library(ggpmisc)
 library(CorReg)
 source('~/extractPVal.R', encoding = 'UTF-8')
-source('~/linearNLL.R', encoding = 'UTF-8')
-source('~/customNll.R', encoding = 'UTF-8')
+source('~/superNll.R', encoding = 'UTF-8')
 cat("\014") # Clear console
 
 # Let's load the data
@@ -34,95 +33,40 @@ antibioticsData = read.table("antibiotics.csv", header=TRUE, sep=",")
 ##########################################################
 ##########################################################
 # Relevel the data to have the control as the reference
-releveledTrt = relevel(antibioticsData$trt, ref=4)
+antibioticsData$trt = as.numeric(relevel(antibioticsData$trt, ref=4))
 
-# Define the nll function with 3 betas set as binary factors
-nll_aov = function(p,x,y){
-  # Define the parameters for the betas and residual standard error
-  b0=p[1]
-  b1=p[2]
-  b2=p[3]
-  b3=p[4]
-  sigma=exp(p[5])
-  
-  # Define separate functions as binary responses
-  expected1 = b0+(x[5:8]-1)*b1
-  expected2 = b0+(x[9:12]-2)*b2
-  expected3 = b0+(x[13:16]-3)*b3
+# Use a custom nll function to obtain parameters and pValue for log likelihood ratio test
+antibioticNll = superNll(antibioticsData$trt, antibioticsData$growth, 4, length(antibioticsData$growth), anova = TRUE)
 
-  # Compute nll for given Y values
-  nll1=-sum(dnorm(x=y[5:8],mean=expected1,sd=sigma,log=TRUE))
-  nll2=-sum(dnorm(x=y[9:12],mean=expected2,sd=sigma,log=TRUE))
-  nll3=-sum(dnorm(x=y[13:16],mean=expected3,sd=sigma,log=TRUE))
-  nll = nll1+nll2+nll3
-  return(nll)
-}
-
-# Define the initial guesses to be the means of the data set as a good starting point
-initialGuess_aov=c(mean(antibioticsData$growth[1:4]),
-               -mean(antibioticsData$growth[1:4])+mean(antibioticsData$growth[5:8]),
-               -mean(antibioticsData$growth[1:4])+mean(antibioticsData$growth[9:12]),
-               -mean(antibioticsData$growth[1:4])+mean(antibioticsData$growth[13:16]),
-               1)
-# Optimize the nll function
-nllAnova=optim(par=initialGuess_aov, fn=nll_aov, x=as.numeric(releveledTrt), y = antibioticsData$growth)
-
-# Create the simplified model
-simpleMod_aov = function(p,x,y){
-  # Define the parameters of the simple model
-  b0=p[1]
-  sigma=exp(p[2])
-  # Define the function of the simple model
-  expected=b0
-  # Compute the nll of the simple model
-  nll=-sum(dnorm(x=y,mean=expected,sd=sigma,log=TRUE))
-  return(nll)
-}
-
-# Initial guess for the simple model
-simpleGuess_aov = c(mean(antibioticsData$growth[1:4]),1)
-
-# Optimize the simplified model
-nllSimple_aov = optim(par=simpleGuess_aov, fn=simpleMod_aov, x=as.numeric(releveledTrt), y = antibioticsData$growth)
-
-# Compute the LR statistic
-teststat_aov = 2*(nllSimple_aov$value-nllAnova$value)
-
-# Compute the degrees of freedom
-df_aov=length(nllAnova$par)-length(nllSimple_aov$par)
-
-# Compute the P value from the nll functions
-nllPVal_aov = 1-pchisq(teststat_aov,df_aov)
-
-# Fit using aov() that passes each group through lm()
-aov.fit = aov(growth ~ releveledTrt, data=antibioticsData)
-sum.aov = summary(aov.fit)
+# Fit using aov() that passes each group through lm() as a comparison
+aov.fit = aov(growth ~ as.factor(trt), data=antibioticsData)
 
 # PValue from aov() using F statistic
-aovPVal=sum.aov[[1]][["Pr(>F)"]][1]
+aovPVal=summary(aov.fit)[[1]][["Pr(>F)"]][1]
 
 # Parameters found from nll
-nllParams_aov = c(nllAnova$par[1], nllAnova$par[2], nllAnova$par[3], nllAnova$par[4], exp(nllAnova$par[5]), nllPVal_aov)
+antibioticParam_nll = c(antibioticNll$coefficients, antibioticNll$sigma, antibioticNll$pValue)
 
 # Parameters found from lm() and aov()
-aovParams = c(aov.fit$coefficients, sigma(aov.fit), aovPVal)
+antibioticParam_aov = c(aov.fit$coefficients, sigma(aov.fit), aovPVal)
 
 # Comparison of nll versus lm()
-comparison_aov = cbind(nllParams_aov, aovParams)
-dimnames(comparison_aov)[[1]]=c("Control", "Treatment 1", "Treatment 2", "Treatment 3", "Residual Std Error", "P Value")
-comparison_aov
-write.table(comparison_aov, "clipboard", sep="\t", row.names=FALSE)
+comparison_antibiotics = cbind(antibioticParam_nll, antibioticParam_aov)
+dimnames(comparison_antibiotics)[[1]]=c("Control", "Treatment 1", "Treatment 2", "Treatment 3", "Residual Std Error", "P Value")
+comparison_antibiotics
+write.table(comparison_antibiotics, "clipboard", sep="\t", row.names=FALSE)
 
 # 95% Confidence interval of the parameters 
-CI_AOV = confint(aov.fit, level = 0.95)
-dimnames(CI_AOV)[[1]]=c("Control", "Treatment 1", "Treatment 2", "Treatment 3")
-CI_AOV
+antibiotic_CI = confint(aov.fit, level = 0.95)
+dimnames(antibiotic_CI)[[1]]=c("Control", "Treatment 1", "Treatment 2", "Treatment 3")
+antibiotic_CI
 
 # Boxplot of the data comparing control versus treatment with 95% CI of the means for each group in red
 BoxPlot(antibioticsData$growth, 
-        antibioticsData$trt, 
+        as.factor(antibioticsData$trt), 
         AnoVa = TRUE, ylab="Growth of Bacteria", 
-        names=c("Treatment 1", "Treatment 2", "Treatment 3", "Control"))
+        names=c("Control", "Treatment 1", "Treatment 2", "Treatment 3"),
+        verbose=FALSE)
 
 ##########################################################
 ##########################################################
@@ -130,59 +74,21 @@ BoxPlot(antibioticsData$growth,
 ##########################################################
 ##########################################################
 
-# Linear log likelihood function
-nllLinear<-function(p,x,y){
-  B0=p[1] 
-  B1=p[2] 
-  sigma=exp(p[3])
-  expected=B0+x*B1
-  nll=-sum(dnorm(x=y,mean=expected,sd=sigma,log=TRUE))
-  return(nll) 
-}
-
-# Initial guess for optimization
-initialGuess_lin=c(1,1,1)
-
-# Optimize the nll function
-linearFit=optim(par=initialGuess_lin,fn=nllLinear,x=sugarData$sugar,y=sugarData$growthSugar)
-
-# Simple model for nll function
-nllSimple_lin<-function(p,x,y){
-  B0=p[1]
-  sigma=exp(p[2])
-  expected=B0
-  nll=-sum(dnorm(x=y,mean=expected,sd=sigma,log=TRUE))
-  return(nll) 
-}
-
-# Initial guess for simple model
-simpleGuess_lin=c(1,1)
-
-# Optimize the simple model
-simpleFit=optim(par=simpleGuess_lin,fn=nllSimple_lin,x=sugarData$sugar,y=sugarData$growthSugar)
-
-# Compute the LR statistic
-teststat_lin=2*(simpleFit$value-linearFit$value)
-
-# Compute the degrees of freedom
-df_lin=length(linearFit$par)-length(simpleFit$par)
-
-# P value from nll function
-nllPVal_lin=1-pchisq(teststat_lin,df_lin)
+sugarNll = superNll(sugarData$sugar,sugarData$growthSugar,2,length(sugarData$sugar),anova=FALSE)
 
 # Combine all parameters for nll
-nllParams_lin = c(linearFit$par[1], linearFit$par[2], exp(linearFit$par[3]), nllPVal_lin)
+sugarParam_nll = c(sugarNll$coefficients, sugarNll$sigma, sugarNll$pValue)
 
 # Linear regression via lm()
 linear.mod = lm(growthSugar ~ sugar, data=sugarData)
 
 # All parameters from lm()
-lmParams = c(linear.mod$coefficients, sigma(linear.mod), extractPVal(linear.mod))
+sugarParam_lm = c(linear.mod$coefficients, sigma(linear.mod), extractPVal(linear.mod))
 
 # Comparison of the parameters
-comparison_lin = cbind(nllParams_lin, lmParams)
-dimnames(comparison_lin)[[1]]=c("Beta 0", "Beta 1", "Residual Std Error", "P Value")
-comparison_lin
+comparison_sugar = cbind(sugarParam_nll, sugarParam_lm)
+dimnames(comparison_sugar)[[1]]=c("Beta 0", "Beta 1", "Residual Std Error", "P Value")
+comparison_sugar
 
 # 95% confidence interval of the parameters b0 and b1
 CI_LM = confint(linear.mod)
@@ -193,7 +99,7 @@ CI_LM
 ggplot(sugarData,aes(sugarData$sugar,sugarData$growthSugar))+
   geom_point()+
   geom_abline(slope=linear.mod$coefficients[2],intercept=linear.mod$coefficients[1])+
-  geom_abline(slope=0,intercept=simpleFit$par[1],color="red")+
+  geom_abline(slope=0,intercept=3.33,color="red")+
   theme_classic()+
   xlab("Sugar Concentration")+
   ylab("Growth of E.Coli")+
@@ -205,7 +111,7 @@ ggplot(sugarData,aes(sugarData$sugar,sugarData$growthSugar))+
 ##########################################################
 ##########################################################
 
-Nsim=100 # Number of simulations to run
+Nsim=1000 # Number of simulations to run
 beta0=10 # The intercept of the line
 beta1=0.4 # The slope of the line
 sigmaVals = c(1,2,4,6,8,12,16,24) # Standard Deviations for the error term
@@ -215,23 +121,24 @@ maxX = 50 # Maximum value of experimental data
 minX = 0 # Minimum value of experimental data
 nLevelsVals = c(2,4,8) # Number of levels in ANOVA
 
+# Define NULL vectors to hold data later in the code
 paramComparison = NULL
 paramComparison_nll = NULL
 
-# Loop over all sigma values
+# Loop over all levels and all sigmas
 for (nLevels in nLevelsVals){
   for (sigma in sigmaVals){
 
     # Linear Regression
     X=seq(minX,maxX,(maxX+1)/N) # Sequenced X values
 
-    # Declare Linear Regression Matrices
+    # Declare Linear Regression Matrices for lm()
     Y=matrix(rep(N*Nsim),nrow=N,ncol=Nsim) # Create our Y matrix
     coeff_matrix_lm=matrix(rep(2*Nsim),nrow=2,ncol=Nsim) # Create our coefficent matrix
     sigma_matrix_lm=matrix(rep(Nsim),nrow=1,ncol=Nsim) # Create our sigma matrix
     p_matrix_lm=matrix(rep(Nsim),nrow=1,ncol=Nsim) # Create our p value matrix
 
-    # Declare Anova matrices
+    # Declare Anova matrices for aov()
     coeff_matrix_aov=matrix(rep(nLevels*Nsim),nrow=nLevels,ncol=Nsim) # Create our coefficent matrix for aov
     sigma_matrix_aov=matrix(rep(Nsim),nrow=1,ncol=Nsim) # Create our sigma matrix for aov
     p_matrix_aov=matrix(rep(Nsim),nrow=1,ncol=Nsim) # Create our p value matrix for aov
@@ -264,7 +171,7 @@ for (nLevels in nLevelsVals){
     averagep_aov = mean(p_matrix_aov)
     significantP_aov = length(which(p_matrix_aov<0.05))
     
-    # Compare the two parameters and P Values
+    # Compare the two parameters and P Values between lm() and aov()
     linearParameters = c(averageb0_reg, averageb1_reg,averagep_reg,significantP_reg)
     anovaParameters = c(averageb0_aov, averageb1_aov,averagep_aov,significantP_aov)
     comparison_III = cbind(linearParameters,anovaParameters)
@@ -273,13 +180,13 @@ for (nLevels in nLevelsVals){
     
     ##########################################################################################################
     
-    # Declare Linear Regression Matrices
+    # Declare Linear Regression Matrices for custom nll function
     Y_nll=matrix(rep(N*Nsim),nrow=N,ncol=Nsim) # Create our Y matrix
     coeff_matrix_lm_nll=matrix(rep(2*Nsim),nrow=2,ncol=Nsim) # Create our coefficent matrix
     sigma_matrix_lm_nll=matrix(rep(Nsim),nrow=1,ncol=Nsim) # Create our sigma matrix
     p_matrix_lm_nll=matrix(rep(Nsim),nrow=1,ncol=Nsim) # Create our p value matrix
     
-    # Declare Anova matrices
+    # Declare Anova matrices for custom nll function
     coeff_matrix_aov_nll=matrix(rep(nLevels*Nsim),nrow=nLevels,ncol=Nsim) # Create our coefficent matrix for aov
     sigma_matrix_aov_nll=matrix(rep(Nsim),nrow=1,ncol=Nsim) # Create our sigma matrix for aov
     p_matrix_aov_nll=matrix(rep(Nsim),nrow=1,ncol=Nsim) # Create our p value matrix for aov
@@ -289,16 +196,16 @@ for (nLevels in nLevelsVals){
       epsilon=rnorm(N,mean=0,sd=sigma) # Normalized error
       Y_nll[,i]=beta0+beta1*X+epsilon  # Generate data points
   
-      mod_nll=linearNLL(X,Y[,i]) # Use nll to obtain parameter estimates
+      mod_nll=superNll(X,Y[,i],nLevels = 2,nExpUnits = N,anova = FALSE) # Use nll to obtain parameter estimates for linear regression
       coeff_matrix_lm_nll[,i]=mod_nll$coefficients # Extract coefficients
       sigma_matrix_lm_nll[i]=mod_nll$sigma # Extract sigmas
       p_matrix_lm_nll[i]=mod_nll$pValue # Extract P Value
     
-      anovaResults=data.frame(levels=rep(seq(0,nLevels-1,1),each=N/nLevels),YVal=Y[,i])
-      aovMod_nll = customNll(anovaResults$levels, anovaResults$YVal, nLevels, N)
-      coeff_matrix_aov_nll[,i]=aovMod_nll$coefficients
-      sigma_matrix_aov_nll[i]=aovMod_nll$sigma
-      p_matrix_aov_nll[i]=aovMod_nll$pValue
+      anovaResults=data.frame(levels=rep(seq(0,nLevels-1,1),each=N/nLevels),YVal=Y[,i]) # set up anova data frame and bin data
+      aovMod_nll = superNll(anovaResults$levels, anovaResults$YVal, nLevels, N,anova = TRUE) # use nll to obtain parameter estimates from anova regression
+      coeff_matrix_aov_nll[,i]=aovMod_nll$coefficients # Extract coefficients
+      sigma_matrix_aov_nll[i]=aovMod_nll$sigma # Extract sigmas
+      p_matrix_aov_nll[i]=aovMod_nll$pValue # Extract p values
     }
     
     # Calculate the averages of the 100 simulations
@@ -321,13 +228,56 @@ for (nLevels in nLevelsVals){
   }
 }
 
+# Extract the two level comparison data for lm() vs. aov()
 twoLevelANOVA = cbind(paramComparison[,1:24])
+# Extract the four level comparison data for lm() vs. aov()
 fourLevelANOVA = cbind(paramComparison[,25:48])
+# Extract the eight level comparison data for lm() vs. aov()
 eightLevelANOA = cbind(paramComparison[,49:72])
 
+# Extract the two level comparison data for linear regression nll vs. anova nll
 twoLevelANOVA_nll = cbind(paramComparison_nll[,1:24])
+# Extract the four level comparison data for linear regression nll vs. anova nll
 fourLevelANOVA_nll = cbind(paramComparison_nll[,25:48])
+# Extract the eight level comparison data for linear regression nll vs. anova nll
 eightLevelANOA_nll = cbind(paramComparison_nll[,49:72])
 
-write.table(twoLevelANOVA_nll, "clipboard", sep="\t", row.names=TRUE)
+# Plot the histogram of the p-values for lm() vs. aov()
+ggplot(data.frame(pVal=t(p_matrix_lm)), aes(x=pVal))+
+  geom_histogram(binwidth = 0.1, color="white",fill="blue")+
+  theme_classic()+
+  xlab("p-Values")+
+  ylab("Frequency")+
+  ggtitle(label="p-Value distribution of lm()")+
+  theme(plot.title=element_text(hjust=0.5))+
+  geom_vline(aes(xintercept=mean(pVal)),color="red",size=1.2)
 
+ggplot(data.frame(pVal=t(p_matrix_aov)), aes(x=pVal))+
+  geom_histogram(binwidth = 0.1, color="white",fill="blue")+
+  theme_classic()+
+  xlab("p-Values")+
+  ylab("Frequency")+
+  ggtitle(label="p-Value distribution of aov()")+
+  theme(plot.title=element_text(hjust=0.5))+
+  geom_vline(aes(xintercept=mean(pVal)),color="red",size=1.2)
+
+# Plot the histogram of the p-values for linear nll vs. anova nll
+ggplot(data.frame(pVal=t(p_matrix_lm_nll)), aes(x=pVal))+
+  geom_histogram(binwidth = 0.1, color="white",fill="blue")+
+  theme_classic()+
+  xlab("p-Values")+
+  ylab("Frequency")+
+  ggtitle(label="p-Value distribution of linear regresssion nll()")+
+  theme(plot.title=element_text(hjust=0.5))+
+  geom_vline(aes(xintercept=mean(pVal)),color="red",size=1.2)
+
+ggplot(data.frame(pVal=t(p_matrix_aov_nll)), aes(x=pVal))+
+  geom_histogram(binwidth = 0.1, color="white",fill="blue")+
+  theme_classic()+
+  xlab("p-Values")+
+  ylab("Frequency")+
+  ggtitle(label="p-Value distribution of anova nll()")+
+  theme(plot.title=element_text(hjust=0.5))+
+  geom_vline(aes(xintercept=mean(pVal)),color="red",size=1.2)
+
+write.table(twoLevelANOVA_nll, "clipboard", sep="\t", row.names=TRUE)
