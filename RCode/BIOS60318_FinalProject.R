@@ -8,6 +8,8 @@ if(!is.null(dev.list())) dev.off() # Clear plots
 par(mfrow=c(1,1)) # Setup plot parameters
 par(ps = 12, font.lab = 1) # Plot parameters
 set.seed(1) # set random seed generator for reproducibility
+src = dirname(rstudioapi::getActiveDocumentContext()$path) # Get the path to where this script is located
+setwd(src) # Set working directory to that path
 
 # If you don't have the packages necessary, let's make sure you do
 list.of.packages <- c("ggplot2", "CorReg")
@@ -18,13 +20,13 @@ if(length(new.packages)) install.packages(new.packages)
 # NOTE: Please make sure extractPVal.R and superNll.R are within your working directory
 library(ggplot2) # Allow plotting capabilities
 library(CorReg) # Allows use of modified BoxPlot()
-source('~/extractPVal.R', encoding = 'UTF-8') # Custom function to extract a Pvalue from an lm() model
-source('~/superNll.R', encoding = 'UTF-8') # Custom function to run MLLE on a data set in either regression or ANOVA format
+source(paste0(getwd(),"/extractPVal.R"), encoding = 'UTF-8') # Custom function to extract a Pvalue from an lm() model
+source(paste0(getwd(),"/superNll.R"), encoding = 'UTF-8') # Custom function to run MLLE on a data set in either regression or ANOVA format
 cat("\014") # Clear console
 
 # Let's load the data
-sugarData = read.table("sugar.csv", header=TRUE, sep=",")
-antibioticsData = read.table("antibiotics.csv", header=TRUE, sep=",")
+sugarData = read.table(paste0(getwd(),"/sugar.csv"), header=TRUE, sep=",")
+antibioticsData = read.table(paste0(getwd(),"/antibiotics.csv"), header=TRUE, sep=",")
 
 ##########################################################
 ##########################################################
