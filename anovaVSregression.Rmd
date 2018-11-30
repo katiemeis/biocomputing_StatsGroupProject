@@ -1,14 +1,215 @@
 ---
 title: "ANOVA and Regression Results"
-output: html_notebook
+output: html_document
 ---
 
 # PART 1 REGRESSION VS ANOVA
 
 This project will focus on the difference between linear models that use categorical or continuous predictor variables. When designing experiments, scientists are often limited by the number of experimental units they can use. These practical limitations may arise due to the cost of using animal subjects, the number of tanks available for aquatic mesocosm studies, or simply the number of hours in the day. This question will focus on the optimal use of these precious experimental units to increase our "statistical power" to detect the effect of
-a treatment.A experimental design question that arises when experimental units are limiting is whether to distribute the units amongst some number of replicated discrete treatment levels (ANOVA-design) or spread the experimental units along a continuous gradient of treatment levels (regression-design). In this project, we
-will first revisit ANOVA and regression analyses in two cases where it is clear what experimental design was chosen. We will then evaluate the ability of these two experimental designs to detect a treatment effect (i.e. their statistical power) using simulated data.
+a treatment. A experimental design question that arises when experimental units are limiting is whether to distribute the units amongst some number of replicated discrete treatment levels (ANOVA-design) or spread the experimental units along a continuous gradient of treatment levels (regression-design). In this project, we will first revisit ANOVA and regression analyses in two cases where it is clear what experimental design was chosen. We will then evaluate the ability of these two experimental designs to detect a treatment effect (i.e. their statistical power) using simulated data.
 
-An ANOVA-design and a regression-design experiment
+## An ANOVA-design and a regression-design experiment
+
 1) A student conducted an experiment evaluating the effect of three different new antibiotics on growth of E. coli in lab cultures. Using the data in antibiotics.txt, generate a plot that summarizes the results and test for an effect of antibiotic treatments on the growth of E. coli using an ANOVA-design linear model and
 likelihood ratio test
+
+```{r include=FALSE}
+rm(list=ls())
+setwd("/Users/emilynonnamaker/Box/personalStuff/School/PhD/biocomputingFall2018/biocomputing_StatsGroupProject")
+library(ggplot2)
+library(arm)
+antibiotics <- read.csv("antibiotics.csv")
+sugar <- read.csv("sugar.csv")
+boxplot(growth ~ trt, data=antibiotics)
+lm <- lm(growth ~ sugar, data=sugar)
+aov <- aov(growth ~ trt, data=antibiotics)
+# max likelihood with anova design 
+# likelihood custom function - need slope/parameter with each column of 0s and 1s. 
+# then lratio
+
+summary(aov)
+posthoc <- TukeyHSD(aov, "trt", conf.level=0.95) #a, b, ac, bd. 
+posthoc
+```
+
+Setting it up: 
+
+```{r}
+N=length(antibiotics$growth)
+y=antibiotics$growth
+x<- antibiotics$trt
+antibiotics$x1 <- ifelse(x=="ab1", 1, 0)
+antibiotics$x2 <- ifelse(x=="ab2", 1, 0)
+antibiotics$x3 <- ifelse(x=="ab3", 1, 0)
+```
+
+Building the null model: 
+
+```{r}
+nullmod<-function(p,x,y){
+  B0=p[1]
+  sigma=p[2]
+  
+  expected=B0
+
+  x1=x[,1]
+  x2=x[,2]
+  x3=x[,3]
+
+null=-sum(dnorm(x=y,mean=expected,sd=sigma, log = TRUE))
+return(null)
+}
+```
+
+Building the full model:
+
+```{r}
+fullmod<-function(p,x,y){
+B0=p[1]
+B1=p[2]
+B2=p[3]
+B3=p[4]
+sigma=exp(p[5])
+
+x1=x[,1]
+x2=x[,2]
+x3=x[,3]
+
+expected=B0+B1*x1+B2*x2+B3*x3
+full=-sum(dnorm(x=y,mean=expected,sd=sigma, log = TRUE))
+return(full)
+}
+```
+
+Building and checking our fits:
+
+```{r}
+nullguess <- c(1, 3)
+fullguess <- c(1, 2, 3, 4,5)
+fitnull=optim(par=nullguess,fn=nullmod,x=antibiotics[,3:5],y=antibiotics$growth)
+fitfull=optim(par=fullguess,fn=fullmod,x=antibiotics[,3:5],y=antibiotics$growth)
+```
+
+Test between null and full model:
+
+```{r}
+t.stat <- 2*(fitfull$par[1] - fitnull$par[1])
+t.stat # 12.62689
+
+1-pchisq(t.stat, df=4) # = 0.01325037
+```
+
+Looks like there's a significant difference between the null and full anova model (t = 12.63, p < .05), suggesting that there are differences between treatments. 
+
+## Graphical visualization!
+
+Using a posthoc Tukey test (see hidden code) we can find significant differences between groups, and add these differences as letters to our visualization (see graph below)
+
+```{r}
+p <- ggplot(antibiotics, aes(x=trt, y=growth, fill=trt)) + 
+  geom_boxplot()
+p + geom_jitter(shape=16, position=position_jitter(0.2), alpha=0.3) + theme_classic() + labs(x = "Treatment", y= "Growth") + annotate("text", x = c(1, 2, 3, 4), y = c(23, 23, 23, 23), label = c("a", "b", "ac", "bd"))
+
+```
+
+## Regression
+
+2) Another student conducted an experiment evaluating the effect of sugar concentration on growth of E. coli in lab cultures. Using the data in sugar.txt, generate a plot that summarizes the results and test for an effect of sugar concentration on growth of E. coli using a regression-design linear model and likelihood ratio test
+
+Building our linear model:
+
+Again, build the null model:
+
+```{r}
+lmnullmod<-function(p,x,y){
+  B0=p[1]
+  sigma=p[2]
+  
+  expected=B0
+
+null=-sum(dnorm(x=y,mean=expected,sd=sigma, log = TRUE))
+return(null)
+}
+```
+
+Now build the extension:
+
+```{r}
+lmfullmod<-function(p,x,y){
+  B0=p[1]
+  B1=p[2]
+  sigma=exp(p[3])
+  
+  expected=B0+B1*x
+
+  null=-sum(dnorm(x=y,mean=expected,sd=sigma, log = TRUE))
+  return(null)
+}
+```
+
+Give it a guess:
+
+```{r}
+lmnullguess <- c(1, 1)
+lmfullguess <- c(1, 2, 3)
+lmfitnull=optim(par=lmnullguess,fn=lmnullmod,x=sugar$sugar,y=sugar$growth)
+lmfitfull=optim(par=lmfullguess,fn=lmfullmod,x=sugar$sugar,y=sugar$growth)
+```
+
+Now to compare:
+
+```{r}
+t.stat <- 2*(lmfitnull$par[1] - lmfitfull$par[1])
+t.stat # 19.78335
+
+1-pchisq(t.stat, df=2) # 5.059418e-05
+```
+
+Comparing between the null model of no effect of sugar concentration on growth to the model taking this affect into account, we can see that sugar concentration does have a significant affect on growth (t = 12.78, p < .0001). Looking at the graph, we can tell that sugar concentration has a positive affect, with higher concentrations increasing growth. 
+
+## Visualization!
+
+```{r}
+a <- ggplot(data=sugar,aes(x=sugar,y=growth))
+a + geom_point() + coord_cartesian() + labs( x = "sugar concentration", y = "growth") + theme_classic() + geom_smooth(method = "lm")
+```
+
+# Part 2 Statistical Power Analysis
+
+Assume that an independent variable x is linearly related to a dependent variable y with a slope (β1) of 0.4 and a y-intercept (β0) of 10. Imagine that we have 16 experimental units that can be used to test for an effect of x on y. One could randomly distribute the experimental units along a gradient of x (regression design) or one could replicate two levels of x 12 times each and ask whether low or high levels of x generate different levels of y (t-test design). An intermediate approach would be to have 8 replicates of three levels of x or 4 replicates of six levels of x and so on (ANOVA design).
+
+Using the relationship between x and y defined by β1 = 0.4 and β0 = 10, we can generate a random dataset with 24 observations of y for any experimental design of interest given some level of error in our observations. We define our error by the standard deviation (σ) of normally distributed errors that we can add to our simulated values of y. Because our results will vary a bit from one simulated data set to another, it is a good idea to adopt something called a monte carlo approach where we run multiple (say 10) versions of a power analysis for a given experimental design and σ.
+
+First get our data set with a normal distribution. 
+
+```{r}
+mod<-function(p,x,y){
+  B0=10
+  B1=0.4
+  sigma=exp(p[3])
+  
+  expected=B0+B1*x
+
+  model=-sum(dnorm(x=y,mean=expected,sd=sigma, log = TRUE))
+  return(model)
+}
+
+newdata <- rnorm(24, 0, 1)
+predict(mod, newdata)
+
+```
+
+
+```{r}
+B1 <- 0.4
+B0 <- 10
+N <- 24
+data <- rnorm(24, 0, 1)
+hist(data)
+```
+
+
+To evaluate the relative statistical power of regression- and ANOVA-design experiments, simulate 10 random experiments with a regression design and 10 random experiments with a two-level ANOVA-design (really this is a t-test design) for each of eight values for σ (1, 2, 4, 6, 8, 12, 16, 24). Let’s say you are able to generate experimental units with x between 0 and 50. Repeat this process for a four- and eight-level ANOVA design (remember you only have 24 experimental units). Use the average p-value from likelihood ratio tests across your monte carlo runs as your metric of statistical power.
+
+How does the ANOVA- vs regression-design perform? Does the relative performance of these experimental designs depend on the number of levels in the ANOVA experiment (2, 4, vs. 8)?
+
