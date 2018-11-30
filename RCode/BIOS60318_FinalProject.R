@@ -9,6 +9,11 @@ par(mfrow=c(1,1)) # Setup plot parameters
 par(ps = 12, font.lab = 1) # Plot parameters
 set.seed(1) # set random seed generator for reproducibility
 
+# If you don't have the packages necessary, let's make sure you do
+list.of.packages <- c("ggplot2", "CorReg")
+new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) install.packages(new.packages)
+
 # Let's load relevant libraries
 library(ggplot2) # Allow plotting capabilities
 library(CorReg) # Allows use of modified BoxPlot()
