@@ -176,40 +176,149 @@ a + geom_point() + coord_cartesian() + labs( x = "sugar concentration", y = "gro
 
 # Part 2 Statistical Power Analysis
 
-Assume that an independent variable x is linearly related to a dependent variable y with a slope (β1) of 0.4 and a y-intercept (β0) of 10. Imagine that we have 16 experimental units that can be used to test for an effect of x on y. One could randomly distribute the experimental units along a gradient of x (regression design) or one could replicate two levels of x 12 times each and ask whether low or high levels of x generate different levels of y (t-test design). An intermediate approach would be to have 8 replicates of three levels of x or 4 replicates of six levels of x and so on (ANOVA design).
+Assume that an independent variable x is linearly related to a dependent variable y with a slope (β1) of 0.4 and a y-intercept (β0) of 10. Imagine that we have 24 experimental units that can be used to test for an effect of x on y. One could randomly distribute the experimental units along a gradient of x (regression design) or one could replicate two levels of x 12 times each and ask whether low or high levels of x generate different levels of y (t-test design). An intermediate approach would be to have 8 replicates of three levels of x or 4 replicates of six levels of x and so on (ANOVA design).
 
 Using the relationship between x and y defined by β1 = 0.4 and β0 = 10, we can generate a random dataset with 24 observations of y for any experimental design of interest given some level of error in our observations. We define our error by the standard deviation (σ) of normally distributed errors that we can add to our simulated values of y. Because our results will vary a bit from one simulated data set to another, it is a good idea to adopt something called a monte carlo approach where we run multiple (say 10) versions of a power analysis for a given experimental design and σ.
 
-First get our data set with a normal distribution. 
+First get our data set with a normal distribution and set errors for given slope and intercept:
 
 ```{r}
-mod<-function(p,x,y){
-  B0=10
-  B1=0.4
+set.seed(123)
+x <- rnorm(24)
+e <- rnorm(24, 0, 1)
+y <- 10 + 0.4*x + e
+y
+
+length(y)
+length(x)
+
+df <- cbind(x, y)
+df <- as.data.frame(df)
+plot(df$x, df$y)
+```
+
+Regression - continuous
+
+```{r}
+lm<-function(p,x,y){
+  B0=p[1]
+  B1=p[2]
   sigma=exp(p[3])
-  
   expected=B0+B1*x
 
-  model=-sum(dnorm(x=y,mean=expected,sd=sigma, log = TRUE))
-  return(model)
+  lmmod=-sum(dnorm(x=y,mean=expected,sd=sigma, log = TRUE))
+  return(lmmod)
 }
 
-newdata <- rnorm(24, 0, 1)
-predict(mod, newdata)
-
+lmmodguess <- c(1, 2, 3)
+lmfitmod=optim(par=lmmodguess,fn=lm,x=df$x,y=df$y)
 ```
 
+T-test - two groups
 
 ```{r}
-B1 <- 0.4
-B0 <- 10
-N <- 24
-data <- rnorm(24, 0, 1)
-hist(data)
+df$x1 <- ifelse(y>10, 1, 0)
+df$x2 <- ifelse(y<10, 1, 0)
+
+ttest<-function(p,x,y){
+  B0=p[1]
+  B1=p[2]
+  B2=p[3]
+  sigma=exp(p[4])
+  expected=B0+B1*x1+B2*x2
+  
+  x1=df[,3]
+  x2=df[,4]
+
+  tmod=-sum(dnorm(x=y,mean=expected,sd=sigma, log = TRUE))
+  return(tmod)
+}
+
+tmodguess <- c(1, 2, 3, 4)
+tfitmod=optim(par=tmodguess,fn=ttest,x=df[,3:4],y=df$y)
+```
+
+Anova - four groups
+
+```{r}
+df$x1 <- ifelse(y< 9.353552, 1, 0)
+df$x2 <- ifelse(9.353552>y & y <10.027724, 1, 0)
+df$x3 <- ifelse(10.799043<y & y>10.027724, 1, 0)
+df$x4 <- ifelse(y>10.799043, 1, 0)
+
+anova<-function(p,x,y){
+  B0=p[1]
+  B1=p[2]
+  B2=p[3]
+  B3=p[4]
+  B4=p[5]
+  sigma=exp(p[6])
+  expected=B0+B1*x1+B2*x2
+  
+  x1=df[,3]
+  x2=df[,4]
+  x3=df[,5]
+  x4=df[,6]
+
+  anovamod=-sum(dnorm(x=y,mean=expected,sd=sigma, log = TRUE))
+  return(anovamod)
+}
+
+anovamodguess <- c(1, 2, 3, 4, 5, 6)
+anovafitmod=optim(par=anovamodguess,fn=ttest,x=df[,3:6],y=df$y)
+```
+
+Comparing between:
+
+Regression vs. t.test
+
+```{r}
+t.stat <- 2*(lmfitmod$par[1] - tfitmod$par[1])
+t.stat # 9.767275
+
+1-pchisq(t.stat, df=3) # 0.02065159
+```
+
+Regression vs. anova
+
+```{r}
+t.stat <- 2*(lmfitmod$par[1] - anovafitmod$par[1])
+t.stat #  13.06448
+
+1-pchisq(t.stat, df=5) # 0.02278192
 ```
 
 
-To evaluate the relative statistical power of regression- and ANOVA-design experiments, simulate 10 random experiments with a regression design and 10 random experiments with a two-level ANOVA-design (really this is a t-test design) for each of eight values for σ (1, 2, 4, 6, 8, 12, 16, 24). Let’s say you are able to generate experimental units with x between 0 and 50. Repeat this process for a four- and eight-level ANOVA design (remember you only have 24 experimental units). Use the average p-value from likelihood ratio tests across your monte carlo runs as your metric of statistical power.
+t.test vs anova
+
+```{r}
+t.stat <- 2*(tfitmod$par[1] - anovafitmod$par[1])
+t.stat # 3.297209
+
+1-pchisq(t.stat, df=5) # 0.654269
+```
+
+
+
+
+To evaluate the relative statistical power of regression- and ANOVA-design experiments, simulate 10 random experiments with a regression design and 10 random experiments with a two-level ANOVA-design (really this is a t-test design) for each of eight values for σ (1, 2, 4, 6, 8, 12, 16, 24). 
+
+Let’s say you are able to generate experimental units with x between 0 and 50. Repeat this process for a four- and eight-level ANOVA design (remember you only have 24 experimental units). Use the average p-value from likelihood ratio tests across your monte carlo runs as your metric of statistical power.
+
+
+Data sets of 24 values in a normal distribution with varying sigma values: 
+
+```{r}
+x.1 <- rnorm(24, c(0:50), sd=1)
+length(x.vec)
+x.2 <- rnorm(24, c(0:50), sd=2)
+x.4 <- rnorm(24, c(0:50), sd=4)
+x.6 <- rnorm(24, c(0:50), sd=6)
+x.8 <- rnorm(24, c(0:50), sd=8)
+x.12 <- rnorm(24, c(0:50), sd=12)
+x.16 <- rnorm(24, c(0:50), sd=16)
+x.24 <- rnorm(24, c(0:50), sd=24)
+```
+
 
 How does the ANOVA- vs regression-design perform? Does the relative performance of these experimental designs depend on the number of levels in the ANOVA experiment (2, 4, vs. 8)?
-
