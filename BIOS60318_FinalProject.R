@@ -10,15 +10,7 @@ par(ps = 12, font.lab = 1)
 set.seed(1) # set random seed generator for reproducibility
 
 # Let's load relevant libraries
-#library(MASS)
-#library(olsrr)
-#library(rcompanion)
-#library(gridExtra)
-#source('~/FHplot.R', encoding = 'UTF-8')
-#source('~/symplot.R', encoding = 'UTF-8')
 library(ggplot2)
-library(ggpmisc)
-library(CorReg)
 source('~/extractPVal.R', encoding = 'UTF-8')
 source('~/superNll.R', encoding = 'UTF-8')
 cat("\014") # Clear console
@@ -160,7 +152,7 @@ for (nLevels in nLevelsVals){
       p_matrix_aov[i]=summary(aovMod)[[1]][["Pr(>F)"]][1]
     }
 
-    # Calculate the averages of the 100 simulations
+    # Calculate the averages of the simulations
     averageb0_reg = mean(coeff_matrix_lm[1])
     averageb1_reg = mean(coeff_matrix_lm[2])
     averagep_reg = mean(p_matrix_lm)
@@ -208,7 +200,7 @@ for (nLevels in nLevelsVals){
       p_matrix_aov_nll[i]=aovMod_nll$pValue # Extract p values
     }
     
-    # Calculate the averages of the 100 simulations
+    # Calculate the averages of the simulations
     averageb0_reg_nll = mean(coeff_matrix_lm_nll[1])
     averageb1_reg_nll = mean(coeff_matrix_lm_nll[2])
     averagep_reg_nll = mean(p_matrix_lm_nll)
@@ -233,14 +225,14 @@ twoLevelANOVA = cbind(paramComparison[,1:24])
 # Extract the four level comparison data for lm() vs. aov()
 fourLevelANOVA = cbind(paramComparison[,25:48])
 # Extract the eight level comparison data for lm() vs. aov()
-eightLevelANOA = cbind(paramComparison[,49:72])
+eightLevelANOVA = cbind(paramComparison[,49:72])
 
 # Extract the two level comparison data for linear regression nll vs. anova nll
 twoLevelANOVA_nll = cbind(paramComparison_nll[,1:24])
 # Extract the four level comparison data for linear regression nll vs. anova nll
 fourLevelANOVA_nll = cbind(paramComparison_nll[,25:48])
 # Extract the eight level comparison data for linear regression nll vs. anova nll
-eightLevelANOA_nll = cbind(paramComparison_nll[,49:72])
+eightLevelANOVA_nll = cbind(paramComparison_nll[,49:72])
 
 # Plot the histogram of the p-values for lm() vs. aov()
 ggplot(data.frame(pVal=t(p_matrix_lm)), aes(x=pVal))+
@@ -280,4 +272,5 @@ ggplot(data.frame(pVal=t(p_matrix_aov_nll)), aes(x=pVal))+
   theme(plot.title=element_text(hjust=0.5))+
   geom_vline(aes(xintercept=mean(pVal)),color="red",size=1.2)
 
-write.table(twoLevelANOVA_nll, "clipboard", sep="\t", row.names=TRUE)
+#write.table(eightLevelANOVA, "clipboard", sep="\t", row.names=TRUE)
+#write.table(eightLevelANOVA_nll, "clipboard", sep="\t", row.names=TRUE)
