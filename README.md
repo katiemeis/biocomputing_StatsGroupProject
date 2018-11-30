@@ -8,8 +8,8 @@ Here we compare ANOVA versus linear regression using two different methods:
 2. Maximum Log-Likelihood Estimate (MLLE)
 
 This repository contains:
-1. A script generating ANOVA and regression results for the antibiotics.csv and sugar.csv data sets [BIOS60318_FinalProject.R]
+1. A script generating ANOVA and regression results for the antibiotics.csv and sugar.csv data sets [BIOS60318_FinalProject.R](https://github.com/fjhuizar/biocomputing_StatsGroupProject/blob/master/RCode/BIOS60318_FinalProject.R)
 2. A word document displaying figures, and interpretation of results [Document Name]
-3. A script implementing power analysis to compare ANOVA and linear regression [BIOS60318_FinalProject.R]
+3. A script implementing power analysis to compare ANOVA and linear regression [BIOS60318_FinalProject.R](https://github.com/fjhuizar/biocomputing_StatsGroupProject/blob/master/RCode/BIOS60318_FinalProject.R)
 4. A word document with figures and text summarizing findings of the power analysis [Document Name]
 
