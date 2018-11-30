@@ -6,14 +6,14 @@
 rm(list=ls()) # Clear workspace
 if(!is.null(dev.list())) dev.off() # Clear plots
 par(mfrow=c(1,1)) # Setup plot parameters
-par(ps = 12, font.lab = 1)
+par(ps = 12, font.lab = 1) # Plot parameters
 set.seed(1) # set random seed generator for reproducibility
 
 # Let's load relevant libraries
-library(ggplot2)
-library(CorReg)
-source('~/extractPVal.R', encoding = 'UTF-8')
-source('~/superNll.R', encoding = 'UTF-8')
+library(ggplot2) # Allow plotting capabilities
+library(CorReg) # Allows use of modified BoxPlot()
+source('~/extractPVal.R', encoding = 'UTF-8') # Custom function to extract a Pvalue from an lm() model
+source('~/superNll.R', encoding = 'UTF-8') # Custom function to run MLLE on a data set in either regression or ANOVA format
 cat("\014") # Clear console
 
 # Let's load the data
@@ -47,7 +47,7 @@ antibioticParam_aov = c(aov.fit$coefficients, sigma(aov.fit), aovPVal)
 comparison_antibiotics = cbind(antibioticParam_nll, antibioticParam_aov)
 dimnames(comparison_antibiotics)[[1]]=c("Control", "Treatment 1", "Treatment 2", "Treatment 3", "Residual Std Error", "P Value")
 comparison_antibiotics
-#write.table(comparison_antibiotics, "clipboard", sep="\t", row.names=FALSE)
+#write.table(comparison_antibiotics, "clipboard", sep="\t", row.names=FALSE) # Transport comparison to excel
 
 # 95% Confidence interval of the parameters 
 antibiotic_CI = confint(aov.fit, level = 0.95)
@@ -247,6 +247,7 @@ fourLevelANOVA_nll = cbind(paramComparison_nll[,25:48])
 eightLevelANOVA_nll = cbind(paramComparison_nll[,49:72])
 
 # Plot the histogram of the p-values for lm() vs. aov() for 8 levels and sigma = 24 (MSE)
+# LSE For linear regression p distribution
 ggplot(data.frame(pVal=t(p_matrix_lm)), aes(x=pVal))+
   geom_histogram(binwidth = 0.1, color="white",fill="blue")+
   theme_classic()+
@@ -256,6 +257,7 @@ ggplot(data.frame(pVal=t(p_matrix_lm)), aes(x=pVal))+
   theme(plot.title=element_text(hjust=0.5))+
   geom_vline(aes(xintercept=mean(pVal)),color="red",size=1.2)
 
+# LSE For ANOVA p distribution
 ggplot(data.frame(pVal=t(p_matrix_aov)), aes(x=pVal))+
   geom_histogram(binwidth = 0.1, color="white",fill="blue")+
   theme_classic()+
@@ -266,6 +268,7 @@ ggplot(data.frame(pVal=t(p_matrix_aov)), aes(x=pVal))+
   geom_vline(aes(xintercept=mean(pVal)),color="red",size=1.2)
 
 # Plot the histogram of the p-values for linear nll vs. anova nll for 8 levels and sigma = 24 (MLLE)
+# MLLE For linear regression p distribution
 ggplot(data.frame(pVal=t(p_matrix_lm_nll)), aes(x=pVal))+
   geom_histogram(binwidth = 0.1, color="white",fill="blue")+
   theme_classic()+
@@ -275,6 +278,7 @@ ggplot(data.frame(pVal=t(p_matrix_lm_nll)), aes(x=pVal))+
   theme(plot.title=element_text(hjust=0.5))+
   geom_vline(aes(xintercept=mean(pVal)),color="red",size=1.2)
 
+# MLLE For ANOVA p distribution
 ggplot(data.frame(pVal=t(p_matrix_aov_nll)), aes(x=pVal))+
   geom_histogram(binwidth = 0.1, color="white",fill="blue")+
   theme_classic()+
@@ -285,6 +289,7 @@ ggplot(data.frame(pVal=t(p_matrix_aov_nll)), aes(x=pVal))+
   geom_vline(aes(xintercept=mean(pVal)),color="red",size=1.2)
 
 # Plot the histogram of the p-values for lm() vs. aov() for 2 levels and sigma = 1 (LSE)
+# LSE For linear regression p distribution
 ggplot(data.frame(pVal=-log10(pMatrixAll[,1])), aes(x=pVal))+
   geom_histogram(binwidth = 0.1, color="white",fill="blue")+
   theme_classic()+
@@ -294,6 +299,7 @@ ggplot(data.frame(pVal=-log10(pMatrixAll[,1])), aes(x=pVal))+
   geom_vline(aes(xintercept=mean(pVal)),color="red",size=1.2)+
   xlim(min(-log10(pMatrixAll[,1])),max(-log10(pMatrixAll[,1])))
 
+# LSE For ANOVA p distribution
 ggplot(data.frame(pVal=-log10(pMatrixAll[,2])), aes(x=pVal))+
   geom_histogram(binwidth = 0.05, color="white",fill="blue")+
   theme_classic()+
@@ -304,6 +310,8 @@ ggplot(data.frame(pVal=-log10(pMatrixAll[,2])), aes(x=pVal))+
   xlim(min(-log10(pMatrixAll[,2])),max(-log10(pMatrixAll[,2])))
 
 # Plot the histogram of the p-values for custom nll for Linear regression and ANOVA for 2 levels and sigma = 1 (MLLE)
+# MLLE For linear regression p distribution
+# NOTE: 1e24 was added to all values due to the values being below the machine computable epsilon value
 ggplot(data.frame(pVal=-log10(pMatrixAll[,3]+1e-24)), aes(x=pVal))+
   geom_histogram(binwidth = 0.1, color="white",fill="blue")+
   theme_classic()+
@@ -313,6 +321,7 @@ ggplot(data.frame(pVal=-log10(pMatrixAll[,3]+1e-24)), aes(x=pVal))+
   geom_vline(aes(xintercept=mean(pVal)),color="red",size=1.2)+
   xlim(23,25)
 
+# MLLE For ANOVA p distribution
 ggplot(data.frame(pVal=-log10(pMatrixAll[,4])), aes(x=pVal))+
   geom_histogram(binwidth = 0.05, color="white",fill="blue")+
   theme_classic()+
@@ -322,5 +331,5 @@ ggplot(data.frame(pVal=-log10(pMatrixAll[,4])), aes(x=pVal))+
   geom_vline(aes(xintercept=mean(pVal)),color="red",size=1.2)+
   xlim(min(-log10(pMatrixAll[,4])),max(-log10(pMatrixAll[,4])))
 
-#write.table(eightLevelANOVA, "clipboard", sep="\t", row.names=TRUE)
-#write.table(eightLevelANOVA_nll, "clipboard", sep="\t", row.names=TRUE)
+#write.table(eightLevelANOVA, "clipboard", sep="\t", row.names=TRUE) # Copy data to clipboard
+#write.table(eightLevelANOVA_nll, "clipboard", sep="\t", row.names=TRUE) # copy data to clipboard
