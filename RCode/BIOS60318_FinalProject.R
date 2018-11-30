@@ -47,7 +47,7 @@ antibioticParam_aov = c(aov.fit$coefficients, sigma(aov.fit), aovPVal)
 comparison_antibiotics = cbind(antibioticParam_nll, antibioticParam_aov)
 dimnames(comparison_antibiotics)[[1]]=c("Control", "Treatment 1", "Treatment 2", "Treatment 3", "Residual Std Error", "P Value")
 comparison_antibiotics
-write.table(comparison_antibiotics, "clipboard", sep="\t", row.names=FALSE)
+#write.table(comparison_antibiotics, "clipboard", sep="\t", row.names=FALSE)
 
 # 95% Confidence interval of the parameters 
 antibiotic_CI = confint(aov.fit, level = 0.95)
@@ -104,7 +104,7 @@ ggplot(sugarData,aes(sugarData$sugar,sugarData$growthSugar))+
 ##########################################################
 ##########################################################
 
-Nsim=1000 # Number of simulations to run
+Nsim=10000 # Number of simulations to run
 beta0=10 # The intercept of the line
 beta1=0.4 # The slope of the line
 sigmaVals = c(1,2,4,6,8,12,16,24) # Standard Deviations for the error term
@@ -117,6 +117,8 @@ nLevelsVals = c(2,4,8) # Number of levels in ANOVA
 # Define NULL vectors to hold data later in the code
 paramComparison = NULL
 paramComparison_nll = NULL
+pMatrixAll = NULL
+pMatrixRun = matrix(0, Nsim, 6)
 
 # Loop over all levels and all sigmas
 for (nLevels in nLevelsVals){
@@ -218,6 +220,15 @@ for (nLevels in nLevelsVals){
     comparison_III_nll = cbind(linearParameters_nll,anovaParameters_nll)
     dimnames(comparison_III_nll)[[1]]=c("Beta 0", "Beta 1", "P Value","Num Significant P")
     paramComparison_nll = cbind(paramComparison_nll, sigma, comparison_III_nll)
+    
+    # Combine all P Values for each MLLE and LSE run
+    pMatrixRun[,1] = p_matrix_lm
+    pMatrixRun[,2] = p_matrix_aov
+    pMatrixRun[,3] = p_matrix_lm_nll
+    pMatrixRun[,4] = p_matrix_aov_nll
+    pMatrixRun[,5] = sigma
+    pMatrixRun[,6] = nLevels
+    pMatrixAll = cbind(pMatrixAll, pMatrixRun)
   }
 }
 
@@ -235,7 +246,7 @@ fourLevelANOVA_nll = cbind(paramComparison_nll[,25:48])
 # Extract the eight level comparison data for linear regression nll vs. anova nll
 eightLevelANOVA_nll = cbind(paramComparison_nll[,49:72])
 
-# Plot the histogram of the p-values for lm() vs. aov()
+# Plot the histogram of the p-values for lm() vs. aov() for 8 levels and sigma = 24 (MSE)
 ggplot(data.frame(pVal=t(p_matrix_lm)), aes(x=pVal))+
   geom_histogram(binwidth = 0.1, color="white",fill="blue")+
   theme_classic()+
@@ -254,7 +265,7 @@ ggplot(data.frame(pVal=t(p_matrix_aov)), aes(x=pVal))+
   theme(plot.title=element_text(hjust=0.5))+
   geom_vline(aes(xintercept=mean(pVal)),color="red",size=1.2)
 
-# Plot the histogram of the p-values for linear nll vs. anova nll
+# Plot the histogram of the p-values for linear nll vs. anova nll for 8 levels and sigma = 24 (MLLE)
 ggplot(data.frame(pVal=t(p_matrix_lm_nll)), aes(x=pVal))+
   geom_histogram(binwidth = 0.1, color="white",fill="blue")+
   theme_classic()+
@@ -272,6 +283,44 @@ ggplot(data.frame(pVal=t(p_matrix_aov_nll)), aes(x=pVal))+
   ggtitle(label="p-Value distribution of anova nll()")+
   theme(plot.title=element_text(hjust=0.5))+
   geom_vline(aes(xintercept=mean(pVal)),color="red",size=1.2)
+
+# Plot the histogram of the p-values for lm() vs. aov() for 2 levels and sigma = 1 (LSE)
+ggplot(data.frame(pVal=-log10(pMatrixAll[,1])), aes(x=pVal))+
+  geom_histogram(binwidth = 0.1, color="white",fill="blue")+
+  theme_classic()+
+  xlab("-log10(p-Values)")+
+  ylab("Frequency")+
+  theme(plot.title=element_text(hjust=0.5))+
+  geom_vline(aes(xintercept=mean(pVal)),color="red",size=1.2)+
+  xlim(min(-log10(pMatrixAll[,1])),max(-log10(pMatrixAll[,1])))
+
+ggplot(data.frame(pVal=-log10(pMatrixAll[,2])), aes(x=pVal))+
+  geom_histogram(binwidth = 0.05, color="white",fill="blue")+
+  theme_classic()+
+  xlab("-log10(p-Values)")+
+  ylab("Frequency")+
+  theme(plot.title=element_text(hjust=0.5))+
+  geom_vline(aes(xintercept=mean(pVal)),color="red",size=1.2)+
+  xlim(min(-log10(pMatrixAll[,2])),max(-log10(pMatrixAll[,2])))
+
+# Plot the histogram of the p-values for custom nll for Linear regression and ANOVA for 2 levels and sigma = 1 (MLLE)
+ggplot(data.frame(pVal=-log10(pMatrixAll[,3]+1e-24)), aes(x=pVal))+
+  geom_histogram(binwidth = 0.1, color="white",fill="blue")+
+  theme_classic()+
+  xlab("-log10(p-Values)")+
+  ylab("Frequency")+
+  theme(plot.title=element_text(hjust=0.5))+
+  geom_vline(aes(xintercept=mean(pVal)),color="red",size=1.2)+
+  xlim(23,25)
+
+ggplot(data.frame(pVal=-log10(pMatrixAll[,4])), aes(x=pVal))+
+  geom_histogram(binwidth = 0.05, color="white",fill="blue")+
+  theme_classic()+
+  xlab("-log10(p-Values)")+
+  ylab("Frequency")+
+  theme(plot.title=element_text(hjust=0.5))+
+  geom_vline(aes(xintercept=mean(pVal)),color="red",size=1.2)+
+  xlim(min(-log10(pMatrixAll[,4])),max(-log10(pMatrixAll[,4])))
 
 #write.table(eightLevelANOVA, "clipboard", sep="\t", row.names=TRUE)
 #write.table(eightLevelANOVA_nll, "clipboard", sep="\t", row.names=TRUE)
