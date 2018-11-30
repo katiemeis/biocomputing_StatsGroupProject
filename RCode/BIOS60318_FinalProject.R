@@ -15,6 +15,7 @@ new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"
 if(length(new.packages)) install.packages(new.packages)
 
 # Let's load relevant libraries
+# NOTE: Please make sure extractPVal.R and superNll.R are within your working directory
 library(ggplot2) # Allow plotting capabilities
 library(CorReg) # Allows use of modified BoxPlot()
 source('~/extractPVal.R', encoding = 'UTF-8') # Custom function to extract a Pvalue from an lm() model
@@ -71,7 +72,7 @@ BoxPlot(antibioticsData$growth,
 ############### Part II: Linear Regression ###############
 ##########################################################
 ##########################################################
-
+colnames(sugarData)[2] = "growthSugar"
 sugarNll = superNll(sugarData$sugar,sugarData$growthSugar,2,length(sugarData$sugar),anova=FALSE)
 
 # Combine all parameters for nll
@@ -109,6 +110,7 @@ ggplot(sugarData,aes(sugarData$sugar,sugarData$growthSugar))+
 ##########################################################
 ##########################################################
 
+# NOTE TO CHECK FUNCTION CODE CHANGE Nsim to 100 or below
 Nsim=10000 # Number of simulations to run
 beta0=10 # The intercept of the line
 beta1=0.4 # The slope of the line
