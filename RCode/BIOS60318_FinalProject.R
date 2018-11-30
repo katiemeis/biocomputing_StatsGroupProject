@@ -11,6 +11,7 @@ set.seed(1) # set random seed generator for reproducibility
 
 # Let's load relevant libraries
 library(ggplot2)
+library(CorReg)
 source('~/extractPVal.R', encoding = 'UTF-8')
 source('~/superNll.R', encoding = 'UTF-8')
 cat("\014") # Clear console
