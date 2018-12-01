@@ -57,7 +57,7 @@ dimnames(comparison_antibiotics)[[1]]=c("Control", "Treatment 1", "Treatment 2",
 comparison_antibiotics
 #write.table(comparison_antibiotics, "clipboard", sep="\t", row.names=FALSE) # Transport comparison to excel
 
-# 95% Confidence interval of the parameters 
+# 95% Confidence interval of the parameters using LSE
 antibiotic_CI = confint(aov.fit, level = 0.95)
 dimnames(antibiotic_CI)[[1]]=c("Control", "Treatment 1", "Treatment 2", "Treatment 3")
 antibiotic_CI
@@ -68,6 +68,12 @@ BoxPlot(antibioticsData$growth,
         AnoVa = TRUE, ylab="Growth of Bacteria", 
         names=c("Control", "Treatment 1", "Treatment 2", "Treatment 3"),
         verbose=FALSE)
+
+# Comparison of each treatment to the control for significance
+# NOTE: Familywise error rate is not corrected for given the low number of tests performed
+controlVSTrt1 = t.test(antibioticsData$growth[1:4], antibioticsData$growth[5:8])
+controlVSTrt2 = t.test(antibioticsData$growth[1:4], antibioticsData$growth[9:12])
+controlVSTrt3 = t.test(antibioticsData$growth[1:4], antibioticsData$growth[13:16])
 
 ##########################################################
 ##########################################################
