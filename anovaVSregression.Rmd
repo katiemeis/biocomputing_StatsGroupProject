@@ -12,3 +12,36 @@ will first revisit ANOVA and regression analyses in two cases where it is clear 
 An ANOVA-design and a regression-design experiment
 1) A student conducted an experiment evaluating the effect of three different new antibiotics on growth of E. coli in lab cultures. Using the data in antibiotics.txt, generate a plot that summarizes the results and test for an effect of antibiotic treatments on the growth of E. coli using an ANOVA-design linear model and
 likelihood ratio test
+
+```{r}
+# Load the data:
+antibiotics = read.table("antibiotics.csv", sep = ',', header = T)
+antibiotics$x1 = ifelse(antibiotics[,antibiotics$trt == "ab1"],1,0 )
+antibiotics$x1 = ifelse(antibiotics[antibiotics$trt == "ab1"],1,0 )
+
+
+View(antibiotics)
+nllike2<-function(p,x,y){ #liklihood function for quadradic equation
+  #parameters:
+  B0=p[1]
+  B1=p[2]
+  B2=p[3]
+  sigma=exp(p[4])
+  #deterministic model:
+  expected=B0+B1*x+B2*x^2
+  #calculate negative log liklihood:
+  nll=-sum(dnorm(x=y,mean=expected,sd=sigma,log=TRUE))
+  return(nll)
+}
+
+initialGuess2=c(1,1,1,1) #a spot to start
+fit2=optim(par=initialGuess2,fn=nllike,x=data2$x, x2=(data$x)^2, y=data2$y)
+
+print(fit2)
+
+
+```
+
+aov( ~ )
+lm ( ~ )
+
