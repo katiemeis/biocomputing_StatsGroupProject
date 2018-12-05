@@ -12,6 +12,8 @@ rm(list=ls())
 setwd("/Users/emilynonnamaker/Box/personalStuff/School/PhD/biocomputingFall2018/biocomputing_StatsGroupProject")
 library(ggplot2)
 library(arm)
+library(tidyr)
+library(reshape2)
 antibiotics <- read.csv("antibiotics.csv")
 sugar <- read.csv("sugar.csv")
 
@@ -24,20 +26,22 @@ aov <- aov(growth ~ trt, data=antibiotics)
 summary(aov)
 posthoc <- TukeyHSD(aov, "trt", conf.level=0.95) #a, b, ac, bd. 
 posthoc
+```
 
-# Now to do the actual assingment:
+## Now to do the actual assingment:
 
+```{r}
 # set up your data: 
 
-N=length(antibiotics$growth)
-y=antibiotics$growth
+N <- length(antibiotics$growth)
+y <- antibiotics$growth
 x<- antibiotics$trt
 antibiotics$x1 <- ifelse(x=="ab1", 1, 0) #dummy variables
 antibiotics$x2 <- ifelse(x=="ab2", 1, 0) #dummy variables
 antibiotics$x3 <- ifelse(x=="ab3", 1, 0) #dummy variables
 
 #Build null model 
-nullmod<-function(p,y){
+nullmod<-function(p,x,y){
   B0=p[1]
   sigma=exp(p[2])
   
@@ -63,16 +67,16 @@ return(full)
 
 # Check fit
 nullguess <- c(1, 2)
-fullguess <- c(1, 2, 3, 4, 5)
-fitnull=optim(par=nullguess,fn=nullmod,y=antibiotics$growth)
-fitfull=optim(par=fullguess,fn=fullmod,x=antibiotics,y=antibiotics$growth)
+fullguess <- c(18, -12, -3, -4, 1)
+fitnull=optim(par=nullguess,fn=nullmod,y=antibiotics$growth) # converges
+fitfull=optim(par=fullguess,fn=fullmod,x=antibiotics,y=antibiotics$growth) # converges
 
 # Get t.statistic and p value. 
 df <- length(fitfull$par) - length(fitnull$par)
 t.stat <- 2*(fitnull$value - fitfull$value)
-t.stat # 25.69042
+t.stat # 37.90134
 
-1-pchisq(t.stat, df=df)
+1-pchisq(t.stat, df=df) # 2.965739e-08
 ```
 
 Looks like there's a significant difference between the null and full anova model (t = 25.69, p < .001), suggesting that there are differences between treatments. 
@@ -85,14 +89,14 @@ Using a posthoc Tukey test (see hidden code) we can find significant differences
 p <- ggplot(antibiotics, aes(x=trt, y=growth, fill=trt)) + 
   geom_boxplot()
 p + geom_jitter(shape=16, position=position_jitter(0.2), alpha=0.3) + theme_classic() + labs(x = "Treatment", y= "Growth") + annotate("text", x = c(1, 2, 3, 4), y = c(23, 23, 23, 23), label = c("a", "b", "ac", "bd"))
-
 ```
 
 ## Regression
 
-2) Another student conducted an experiment evaluating the effect of sugar concentration on growth of E. coli in lab cultures. Using the data in sugar.txt, generate a plot that summarizes the results and test for an effect of sugar concentration on growth of E. coli using a regression-design linear model and likelihood ratio test
+Build the null model:
  
-lmnullmod<-function(p,x,y){
+```{r}
+lmnullmodreg<-function(p,x,y){
   B0=p[1]
   sigma=exp(p[2])
   
@@ -106,7 +110,7 @@ return(null)
 Now build the extension:
 
 ```{r}
-lmfullmod<-function(p,x,y){
+lmfullmodreg<-function(p,x,y){
   B0=p[1]
   B1=p[2]
   sigma=exp(p[3])
@@ -121,23 +125,22 @@ lmfullmod<-function(p,x,y){
 Give it a guess:
 
 ```{r}
-lmnullguess <- c(1, 1)
-lmfullguess <- c(1, 2, 3)
-lmfitnull=optim(par=lmnullguess,fn=lmnullmod,x=sugar$sugar,y=sugar$growth)
-lmfitfull=optim(par=lmfullguess,fn=lmfullmod,x=sugar$sugar,y=sugar$growth)
+lmnullregguess <- c(1, 1)
+lmfullregguess <- c(1, 2, 3)
+lmfitregnull=optim(par=lmnullregguess,fn=lmnullmodreg,x=sugar$sugar,y=sugar$growth) # converges
+lmfitregfull=optim(par=lmfullregguess,fn=lmfullmodreg,x=sugar$sugar,y=sugar$growth) # converges
 ```
 
 Now to compare:
 
 ```{r}
-
-t.stat <- 2*(lmfitnull$value - lmfitfull$value)
-t.stat # 39.92512
-
-1-pchisq(t.stat, df=1) # 2.638878e-10
+t.statreg <- 2*(lmfitregnull$value - lmfitregfull$value)
+t.statreg # 39.92512
+dfreg <- length(lmfitregfull$par) - length(lmfitregnull$par)
+1-pchisq(t.stat, df=dfreg) # 7.441429e-10, woot
 ```
 
-Comparing between the null model of no effect of sugar concentration on growth to the model taking this affect into account, we can see that sugar concentration does have a significant affect on growth (t = 39.92512, p < .0001). Looking at the graph, we can tell that sugar concentration has a positive affect, with higher concentrations increasing growth. 
+Comparing between the null model of no effect of sugar concentration on growth to the model taking this affect into account, we can see that sugar concentration does have a significant affect on growth (t = 39.92512, p < .0001). Looking at the graph below, we can tell that sugar concentration has a positive affect, with higher concentrations of sugar increasing growth. 
 
 ## Visualization!
 
@@ -149,17 +152,13 @@ a + geom_point() + coord_cartesian() + labs( x = "sugar concentration", y = "gro
 # Part 2 Statistical Power Analysis
 
 ```{r}
-
-########################
-# Put in your models  #
-#######################
-
 # Null model
-
 nullmod<- function(p,x,y){
   B0=p[1]
   sigma=exp(p[2])
+  
   expected=B0
+  
   null=-sum(dnorm(x=y,mean=expected,sd=sigma, log = TRUE))
   return(null)
 }
@@ -169,6 +168,7 @@ lin<-function(p,x,y){
   B0=p[1]
   B1=p[2]
   sigma=exp(p[3])
+  
   expected=B0+B1*x
 
   lmmod=-sum(dnorm(x=y,mean=expected,sd=sigma, log = TRUE))
@@ -187,7 +187,7 @@ ttest<-function(p,x,y){
   return(tmod)
 }
 
-# Anova - four groups
+# ANOVA - four groups
 anovamod<-function(p,x,y){
 B0=p[1]
 B1=p[2]
@@ -196,11 +196,12 @@ B3=p[4]
 sigma=exp(p[5])
 
 expected=B0+B1*x[,1]+B2*x[,2]+B3*x[,3]
-full=-sum(dnorm(x=y,mean=expected,sd=sigma,log = TRUE))
-return(full)
-} #optim-call call dummy
 
-# Now an anova with 8 groups
+anova=-sum(dnorm(x=y,mean=expected,sd=sigma,log = TRUE))
+return(anova)
+}
+
+# Now an ANOVA with 8 groups
 eightanovamod<-function(p,x,y){
   B0=p[1]
   B1=p[2]
@@ -211,13 +212,18 @@ eightanovamod<-function(p,x,y){
   B6=p[7]
   B7=p[8]
   sigma=exp(p[9])
+  
   expected=B0+B1*x[,1]+B2*x[,2]+B3*x[,3]+B4*x[,4]+B5*x[,5]+B6*x[,6]+B7*x[,7]
+  
   eightanovamod=-sum(dnorm(x=y,mean=expected,sd=sigma, log = TRUE))
   return(eightanovamod)
 }
 
-### Now do your for loops!
+```
 
+## Now do your for loops!
+
+```{r}
 # Set up an empty data frame in which to store your p-values for each sigma and model.
 dfp <- setNames(data.frame(matrix(ncol = 5, nrow = 8)), c("Sigmas", "Regression", "T.test", "Anova",  "Eight.Anova"))
 
@@ -262,18 +268,18 @@ for (i in 1:length(sigmas)){ # sigma runs
     edummy[22:24,7]<-1
     
     # guesses
-    nullmodguess <- c(1,2)
-    lmmodguess <- c(1, 2, 3)
-    tmodguess<-c(1,2,3,4,5)
-    aovguess<- c(1,2,3,4,5)
-    eightaovguess<-c(1,2,3,4,5,6,7,8,9)
+    nullmodguess <- c(1,2) # 2
+    lmmodguess <- c(1, 2, 3) # 3 
+    tmodguess<-c(1,1,1,1,1) # 5
+    aovguess<- c(9,10,-6,8,2) # 5 
+    eightaovguess<-c(1, 12.5,15,17.5,20,22.5,25,27.5,30) # 9
     
     #optims
-    nullfitmod=optim(par=nullmodguess,fn=nullmod,x=df$x,y=df$y)
-    lmfitmod=optim(par=lmmodguess,fn=lin,x=df$x,y=df$y)
-    tfitmod=optim(par=tmodguess,fn=ttest,x=tdummy,y=df$y)
-    anovafitmod=optim(par=aovguess,fn=anovamod,x=dummy,y=df$y)
-    eightanovafitmod=optim(par=eightaovguess,fn=eightanovamod,x=edummy,y=df$y)
+    nullfitmod=optim(par=nullmodguess,fn=nullmod,x=df$x,y=df$y) # converges
+    lmfitmod=optim(par=lmmodguess,fn=lin,x=df$x,y=df$y) # converges 
+    tfitmod=optim(par=tmodguess,fn=ttest,x=tdummy,y=df$y) # converges
+    anovafitmod=optim(par=aovguess,fn=anovamod,x=dummy,y=df$y, control=list(maxit=1e5)) # converges
+    eightanovafitmod=optim(par=eightaovguess,fn=eightanovamod,x=edummy,y=df$y, control=list(maxit=1e5)) # converges
    
     # degrees of freedom 
      degfreg <- length(lmfitmod$par) - length(nullfitmod$par) 
@@ -299,23 +305,43 @@ for (i in 1:length(sigmas)){ # sigma runs
   dfp[i,4] <- mean(anova.p)
   dfp[i,5] <- mean(eightanova.p)
 }
+```
 
+Now reshape your dataframe of p-values into something you can plot!
+
+```{r}
+mframe <- melt(dfp)
+mframe <- mframe[9:40,]
+allsigmas <- c(1,  2,  4,  6,  8, 12, 16, 24, 1,  2,  4,  6,  8,12, 16, 24, 1,  2,  4,  6,  8, 12, 16, 24, 1,  2,  4,  6,  8, 12, 16, 24)
+mframe$sigma <- allsigmas
 ```
 
 Scatterplot with each model as a different color!
 Linear model should be best
 
+NOTE 8 LEVEL ANOVA STILL NOT WORKING
+
 ## Visualize!!
 
 ```{r}
-pvalues <- read.csv("P-values.csv")
-Model <- pvalues$Model
-p <- ggplot(pvalues, aes(x=pvalues$Sigmas, y=pvalues$Mean_p, colour=Model)) + geom_point (size=2) + xlab("Sigma Values") + ylab("Mean p-values") 
+mframe <- as.data.frame(mframe)
+p <- ggplot(mframe, aes(x=mframe$sigma, y=mframe$value, colour=variable)) + geom_point (size=2) + xlab("Sigma Values") + ylab("Mean p-values") 
 p
      
 ```
 
-The regression model performs best across the sigmas, as evidenced by it's low p-value scores. The eight level anova should perform close to the regression, but there's something wrong with our code. After that, the four level anova should perform in between the t-test and the regression, again our code is wrong. Finally the t-test, as expected, performed worse (should have). Our model is linear, so a linear regression should fit best, followed by models that break up the data into larger numbers of groups (closer to a linear model). 
+The regression model performs best across the sigmas, as evidenced by it's low p-value scores. The eight level anova should perform close to the regression, but there's something wrong with our code. The four level anova performs in between the t-test and the regression. Finally the t-test, as expected, performed worse than either the regression or the four level ANOVA (and should perform worse than the eight-level as well). This all makes sense, as our data is linearly correlated, so a linear regression should fit best, followed by models that break up the data into larger numbers of groups (closer to a linear model). 
 
 It's clearly best to try to fit linear data to a linear model, but when resources are constrained, it seems the best strategy is to fit as many groups as possible. In this case, you need at least four experimental units (four way anova), to detect a significant effect. 
 
+
+
+```{r, include=FALSE}
+# get values for the eight level anova guess:
+x <- c(6.25, 12.5, 18.72, 25, 31.25, 37.5, 43.75, 50)
+y.vec <- rep(NA, 8)
+for (i in 1:length(x)){
+   y[i] <- 10 + 0.4*x[i]
+   y.vec <- y
+}
+```
