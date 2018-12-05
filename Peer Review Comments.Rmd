@@ -1,0 +1,34 @@
+---
+title: "Peer Review"
+output: html_document
+---
+
+# Part 1:
+
+## ANOVA
+
+We like that this group used the following code:
+
+```{r}
+pchisq(teststat,df, lower=F)
+```
+
+Instead of doing 1-pchisq. Nifty.
+
+
+For lines 79, 81, and 83, include the results in hashtags, for more convienent comparisons. 
+
+Add an abline in your regression plot. 
+
+
+## Regression
+
+Looks great.
+
+# Part 2:
+
+Combine scripts for part 2 into one script. 
+
+In the ANOVA Monte carlo, delete the bottom lines to reduce reader confusion.
+
+At the end, if time, build a graph to visually display the p-values. 

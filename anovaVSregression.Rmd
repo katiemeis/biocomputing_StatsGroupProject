@@ -5,65 +5,53 @@ output: html_document
 
 # PART 1 REGRESSION VS ANOVA
 
-This project will focus on the difference between linear models that use categorical or continuous predictor variables. When designing experiments, scientists are often limited by the number of experimental units they can use. These practical limitations may arise due to the cost of using animal subjects, the number of tanks available for aquatic mesocosm studies, or simply the number of hours in the day. This question will focus on the optimal use of these precious experimental units to increase our "statistical power" to detect the effect of
-a treatment. A experimental design question that arises when experimental units are limiting is whether to distribute the units amongst some number of replicated discrete treatment levels (ANOVA-design) or spread the experimental units along a continuous gradient of treatment levels (regression-design). In this project, we will first revisit ANOVA and regression analyses in two cases where it is clear what experimental design was chosen. We will then evaluate the ability of these two experimental designs to detect a treatment effect (i.e. their statistical power) using simulated data.
-
 ## An ANOVA-design and a regression-design experiment
-
-1) A student conducted an experiment evaluating the effect of three different new antibiotics on growth of E. coli in lab cultures. Using the data in antibiotics.txt, generate a plot that summarizes the results and test for an effect of antibiotic treatments on the growth of E. coli using an ANOVA-design linear model and
-likelihood ratio test
 
 ```{r include=FALSE}
 rm(list=ls())
 setwd("/Users/emilynonnamaker/Box/personalStuff/School/PhD/biocomputingFall2018/biocomputing_StatsGroupProject")
 library(ggplot2)
 library(arm)
+library(tidyr)
+library(reshape2)
 antibiotics <- read.csv("antibiotics.csv")
 sugar <- read.csv("sugar.csv")
+
+#playing around - check out the data
 boxplot(growth ~ trt, data=antibiotics)
 lm <- lm(growth ~ sugar, data=sugar)
 aov <- aov(growth ~ trt, data=antibiotics)
-# max likelihood with anova design 
-# likelihood custom function - need slope/parameter with each column of 0s and 1s. 
-# then lratio
 
+# how a normal person would do this
 summary(aov)
 posthoc <- TukeyHSD(aov, "trt", conf.level=0.95) #a, b, ac, bd. 
 posthoc
 ```
 
-Setting it up: 
+## Now to do the actual assingment:
 
 ```{r}
-N=length(antibiotics$growth)
-y=antibiotics$growth
+# set up your data: 
+
+N <- length(antibiotics$growth)
+y <- antibiotics$growth
 x<- antibiotics$trt
-antibiotics$x1 <- ifelse(x=="ab1", 1, 0)
-antibiotics$x2 <- ifelse(x=="ab2", 1, 0)
-antibiotics$x3 <- ifelse(x=="ab3", 1, 0)
-```
+antibiotics$x1 <- ifelse(x=="ab1", 1, 0) #dummy variables
+antibiotics$x2 <- ifelse(x=="ab2", 1, 0) #dummy variables
+antibiotics$x3 <- ifelse(x=="ab3", 1, 0) #dummy variables
 
-Building the null model: 
-
-```{r}
+#Build null model 
 nullmod<-function(p,x,y){
   B0=p[1]
-  sigma=p[2]
+  sigma=exp(p[2])
   
   expected=B0
-
-  x1=x[,1]
-  x2=x[,2]
-  x3=x[,3]
 
 null=-sum(dnorm(x=y,mean=expected,sd=sigma, log = TRUE))
 return(null)
 }
-```
 
-Building the full model:
-
-```{r}
+#Build full model
 fullmod<-function(p,x,y){
 B0=p[1]
 B1=p[2]
@@ -71,35 +59,27 @@ B2=p[3]
 B3=p[4]
 sigma=exp(p[5])
 
-x1=x[,1]
-x2=x[,2]
-x3=x[,3]
+expected=B0+B1*x[,3]+B2*x[,4]+B3*x[,5]
 
-expected=B0+B1*x1+B2*x2+B3*x3
-full=-sum(dnorm(x=y,mean=expected,sd=sigma, log = TRUE))
+full=-sum(dnorm(x=y,mean=expected,sd=sigma,log = TRUE))
 return(full)
 }
+
+# Check fit
+nullguess <- c(1, 2)
+fullguess <- c(18, -12, -3, -4, 1)
+fitnull=optim(par=nullguess,fn=nullmod,y=antibiotics$growth) # converges
+fitfull=optim(par=fullguess,fn=fullmod,x=antibiotics,y=antibiotics$growth) # converges
+
+# Get t.statistic and p value. 
+df <- length(fitfull$par) - length(fitnull$par)
+t.stat <- 2*(fitnull$value - fitfull$value)
+t.stat # 37.90134
+
+1-pchisq(t.stat, df=df) # 2.965739e-08
 ```
 
-Building and checking our fits:
-
-```{r}
-nullguess <- c(1, 3)
-fullguess <- c(1, 2, 3, 4,5)
-fitnull=optim(par=nullguess,fn=nullmod,x=antibiotics[,3:5],y=antibiotics$growth)
-fitfull=optim(par=fullguess,fn=fullmod,x=antibiotics[,3:5],y=antibiotics$growth)
-```
-
-Test between null and full model:
-
-```{r}
-t.stat <- 2*(fitfull$par[1] - fitnull$par[1])
-t.stat # 12.62689
-
-1-pchisq(t.stat, df=4) # = 0.01325037
-```
-
-Looks like there's a significant difference between the null and full anova model (t = 12.63, p < .05), suggesting that there are differences between treatments. 
+Looks like there's a significant difference between the null and full anova model (t = 25.69, p < .001), suggesting that there are differences between treatments. 
 
 ## Graphical visualization!
 
@@ -109,21 +89,16 @@ Using a posthoc Tukey test (see hidden code) we can find significant differences
 p <- ggplot(antibiotics, aes(x=trt, y=growth, fill=trt)) + 
   geom_boxplot()
 p + geom_jitter(shape=16, position=position_jitter(0.2), alpha=0.3) + theme_classic() + labs(x = "Treatment", y= "Growth") + annotate("text", x = c(1, 2, 3, 4), y = c(23, 23, 23, 23), label = c("a", "b", "ac", "bd"))
-
 ```
 
 ## Regression
 
-2) Another student conducted an experiment evaluating the effect of sugar concentration on growth of E. coli in lab cultures. Using the data in sugar.txt, generate a plot that summarizes the results and test for an effect of sugar concentration on growth of E. coli using a regression-design linear model and likelihood ratio test
-
-Building our linear model:
-
-Again, build the null model:
-
+Build the null model:
+ 
 ```{r}
-lmnullmod<-function(p,x,y){
+lmnullmodreg<-function(p,x,y){
   B0=p[1]
-  sigma=p[2]
+  sigma=exp(p[2])
   
   expected=B0
 
@@ -135,7 +110,7 @@ return(null)
 Now build the extension:
 
 ```{r}
-lmfullmod<-function(p,x,y){
+lmfullmodreg<-function(p,x,y){
   B0=p[1]
   B1=p[2]
   sigma=exp(p[3])
@@ -150,22 +125,22 @@ lmfullmod<-function(p,x,y){
 Give it a guess:
 
 ```{r}
-lmnullguess <- c(1, 1)
-lmfullguess <- c(1, 2, 3)
-lmfitnull=optim(par=lmnullguess,fn=lmnullmod,x=sugar$sugar,y=sugar$growth)
-lmfitfull=optim(par=lmfullguess,fn=lmfullmod,x=sugar$sugar,y=sugar$growth)
+lmnullregguess <- c(1, 1)
+lmfullregguess <- c(1, 2, 3)
+lmfitregnull=optim(par=lmnullregguess,fn=lmnullmodreg,x=sugar$sugar,y=sugar$growth) # converges
+lmfitregfull=optim(par=lmfullregguess,fn=lmfullmodreg,x=sugar$sugar,y=sugar$growth) # converges
 ```
 
 Now to compare:
 
 ```{r}
-t.stat <- 2*(lmfitnull$par[1] - lmfitfull$par[1])
-t.stat # 19.78335
-
-1-pchisq(t.stat, df=2) # 5.059418e-05
+t.statreg <- 2*(lmfitregnull$value - lmfitregfull$value)
+t.statreg # 39.92512
+dfreg <- length(lmfitregfull$par) - length(lmfitregnull$par)
+1-pchisq(t.stat, df=dfreg) # 7.441429e-10, woot
 ```
 
-Comparing between the null model of no effect of sugar concentration on growth to the model taking this affect into account, we can see that sugar concentration does have a significant affect on growth (t = 12.78, p < .0001). Looking at the graph, we can tell that sugar concentration has a positive affect, with higher concentrations increasing growth. 
+Comparing between the null model of no effect of sugar concentration on growth to the model taking this affect into account, we can see that sugar concentration does have a significant affect on growth (t = 39.92512, p < .0001). Looking at the graph below, we can tell that sugar concentration has a positive affect, with higher concentrations of sugar increasing growth. 
 
 ## Visualization!
 
@@ -176,149 +151,197 @@ a + geom_point() + coord_cartesian() + labs( x = "sugar concentration", y = "gro
 
 # Part 2 Statistical Power Analysis
 
-Assume that an independent variable x is linearly related to a dependent variable y with a slope (β1) of 0.4 and a y-intercept (β0) of 10. Imagine that we have 24 experimental units that can be used to test for an effect of x on y. One could randomly distribute the experimental units along a gradient of x (regression design) or one could replicate two levels of x 12 times each and ask whether low or high levels of x generate different levels of y (t-test design). An intermediate approach would be to have 8 replicates of three levels of x or 4 replicates of six levels of x and so on (ANOVA design).
-
-Using the relationship between x and y defined by β1 = 0.4 and β0 = 10, we can generate a random dataset with 24 observations of y for any experimental design of interest given some level of error in our observations. We define our error by the standard deviation (σ) of normally distributed errors that we can add to our simulated values of y. Because our results will vary a bit from one simulated data set to another, it is a good idea to adopt something called a monte carlo approach where we run multiple (say 10) versions of a power analysis for a given experimental design and σ.
-
-First get our data set with a normal distribution and set errors for given slope and intercept:
-
 ```{r}
-set.seed(123)
-x <- rnorm(24)
-e <- rnorm(24, 0, 1)
-y <- 10 + 0.4*x + e
-y
+# Null model
+nullmod<- function(p,x,y){
+  B0=p[1]
+  sigma=exp(p[2])
+  
+  expected=B0
+  
+  null=-sum(dnorm(x=y,mean=expected,sd=sigma, log = TRUE))
+  return(null)
+}
 
-length(y)
-length(x)
-
-df <- cbind(x, y)
-df <- as.data.frame(df)
-plot(df$x, df$y)
-```
-
-Regression - continuous
-
-```{r}
-lm<-function(p,x,y){
+# Regression model
+lin<-function(p,x,y){
   B0=p[1]
   B1=p[2]
   sigma=exp(p[3])
+  
   expected=B0+B1*x
 
   lmmod=-sum(dnorm(x=y,mean=expected,sd=sigma, log = TRUE))
   return(lmmod)
 }
 
-lmmodguess <- c(1, 2, 3)
-lmfitmod=optim(par=lmmodguess,fn=lm,x=df$x,y=df$y)
-```
-
-T-test - two groups
-
-```{r}
-df$x1 <- ifelse(y>10, 1, 0)
-df$x2 <- ifelse(y<10, 1, 0)
-
+# T-test model
 ttest<-function(p,x,y){
   B0=p[1]
   B1=p[2]
-  B2=p[3]
-  sigma=exp(p[4])
-  expected=B0+B1*x1+B2*x2
-  
-  x1=df[,3]
-  x2=df[,4]
+  sigma=exp(p[3])
+  x1=x
+  expected=B0+B1*x1
 
   tmod=-sum(dnorm(x=y,mean=expected,sd=sigma, log = TRUE))
   return(tmod)
 }
 
-tmodguess <- c(1, 2, 3, 4)
-tfitmod=optim(par=tmodguess,fn=ttest,x=df[,3:4],y=df$y)
-```
+# ANOVA - four groups
+anovamod<-function(p,x,y){
+B0=p[1]
+B1=p[2]
+B2=p[3]
+B3=p[4]
+sigma=exp(p[5])
 
-Anova - four groups
+expected=B0+B1*x[,1]+B2*x[,2]+B3*x[,3]
 
-```{r}
-df$x1 <- ifelse(y< 9.353552, 1, 0)
-df$x2 <- ifelse(9.353552>y & y <10.027724, 1, 0)
-df$x3 <- ifelse(10.799043<y & y>10.027724, 1, 0)
-df$x4 <- ifelse(y>10.799043, 1, 0)
+anova=-sum(dnorm(x=y,mean=expected,sd=sigma,log = TRUE))
+return(anova)
+}
 
-anova<-function(p,x,y){
+# Now an ANOVA with 8 groups
+eightanovamod<-function(p,x,y){
   B0=p[1]
   B1=p[2]
   B2=p[3]
   B3=p[4]
   B4=p[5]
-  sigma=exp(p[6])
-  expected=B0+B1*x1+B2*x2
+  B5=p[6]
+  B6=p[7]
+  B7=p[8]
+  sigma=exp(p[9])
   
-  x1=df[,3]
-  x2=df[,4]
-  x3=df[,5]
-  x4=df[,6]
-
-  anovamod=-sum(dnorm(x=y,mean=expected,sd=sigma, log = TRUE))
-  return(anovamod)
+  expected=B0+B1*x[,1]+B2*x[,2]+B3*x[,3]+B4*x[,4]+B5*x[,5]+B6*x[,6]+B7*x[,7]
+  
+  eightanovamod=-sum(dnorm(x=y,mean=expected,sd=sigma, log = TRUE))
+  return(eightanovamod)
 }
 
-anovamodguess <- c(1, 2, 3, 4, 5, 6)
-anovafitmod=optim(par=anovamodguess,fn=ttest,x=df[,3:6],y=df$y)
 ```
 
-Comparing between:
-
-Regression vs. t.test
+## Now do your for loops!
 
 ```{r}
-t.stat <- 2*(lmfitmod$par[1] - tfitmod$par[1])
-t.stat # 9.767275
+# Set up an empty data frame in which to store your p-values for each sigma and model.
+dfp <- setNames(data.frame(matrix(ncol = 5, nrow = 8)), c("Sigmas", "Regression", "T.test", "Anova",  "Eight.Anova"))
 
-1-pchisq(t.stat, df=3) # 0.02065159
+# Set up your vector of sigmas to loop through
+sigmas <- c(1,2,4,6,8,12,16,24)
+
+# Write your nested for loop:
+for (i in 1:length(sigmas)){ # sigma runs
+  # set up your vectors for your p-values from each monte-carlo run. 
+  reg.p <- numeric(10) # changes each time you use a new sigma
+  t.p <- numeric(10)
+  anova.p <- numeric(10)
+  eightanova.p <- numeric(10)
+  for (j in 1:10){ # monte carlo runs
+    x <- runif(24, 0, 50) # build set of x's
+    e <- rnorm(24, 0, sd = sigmas[i]) # put in your error
+    y <- 10 + 0.4*x + e # write your linear equation
+    df <- cbind(x, y) # bind x and y into a data frame
+    df <- as.data.frame(df)
+    df <- df[order(df$x),] # order for later sorting. 
+    
+    # dummy coding:
+    
+    # For t-test
+    tdummy <- matrix(0, 24, 1)
+    tdummy[13:24,1] <- 1
+  
+    # For anova
+    dummy <- matrix(0, 24, 3)
+    dummy[7:12,1] <- 1
+    dummy[13:18,2] <-1
+    dummy[19:24,3] <-1
+    
+    #for eight-level anova
+    edummy <- matrix(0, 24, 7)
+    edummy[4:6,1]<-1
+    edummy[7:9,2]<-1
+    edummy[10:12,3]<-1
+    edummy[13:15,4]<-1
+    edummy[16:18,5]<-1
+    edummy[19:21,6]<-1
+    edummy[22:24,7]<-1
+    
+    # guesses
+    nullmodguess <- c(1,2) # 2
+    lmmodguess <- c(1, 2, 3) # 3 
+    tmodguess<-c(1,1,1,1,1) # 5
+    aovguess<- c(9,10,-6,8,2) # 5 
+    eightaovguess<-c(1, 12.5,15,17.5,20,22.5,25,27.5,30) # 9
+    
+    #optims
+    nullfitmod=optim(par=nullmodguess,fn=nullmod,x=df$x,y=df$y) # converges
+    lmfitmod=optim(par=lmmodguess,fn=lin,x=df$x,y=df$y) # converges 
+    tfitmod=optim(par=tmodguess,fn=ttest,x=tdummy,y=df$y) # converges
+    anovafitmod=optim(par=aovguess,fn=anovamod,x=dummy,y=df$y, control=list(maxit=1e5)) # converges
+    eightanovafitmod=optim(par=eightaovguess,fn=eightanovamod,x=edummy,y=df$y, control=list(maxit=1e5)) # converges
+   
+    # degrees of freedom 
+     degfreg <- length(lmfitmod$par) - length(nullfitmod$par) 
+     degft <- length(tfitmod$par) - length(nullfitmod$par) 
+     degfanova <- length(anovafitmod$par) - length(nullfitmod$par) 
+     degfeightanova <- length(eightanovafitmod$par) - length(nullfitmod$par) 
+     
+     # test stats
+    t.statreg <- 2*(nullfitmod$value - lmfitmod$value)
+    t.statt <- 2*(nullfitmod$value - tfitmod$value)
+    t.statanova <- 2*(nullfitmod$value - anovafitmod$value)
+    t.stateightanova <- 2*(nullfitmod$value - eightanovafitmod$value)
+    
+    # pvalues 
+    reg.p[j] <- 1-pchisq(t.statreg, df=degfreg)
+    t.p[j]<- 1-pchisq(t.statt, df=degft)
+    anova.p[j]<- 1-pchisq(t.statanova, df=degfanova)
+    eightanova.p[j]<- 1-pchisq(t.stateightanova, df=degfeightanova)
+  }
+  dfp[,1]<- c(1, 2, 4, 6, 8, 12, 16, 24)
+  dfp[i,2] <- mean(reg.p)
+  dfp[i,3] <- mean(t.p)
+  dfp[i,4] <- mean(anova.p)
+  dfp[i,5] <- mean(eightanova.p)
+}
 ```
 
-Regression vs. anova
+Now reshape your dataframe of p-values into something you can plot!
 
 ```{r}
-t.stat <- 2*(lmfitmod$par[1] - anovafitmod$par[1])
-t.stat #  13.06448
-
-1-pchisq(t.stat, df=5) # 0.02278192
+mframe <- melt(dfp)
+mframe <- mframe[9:40,]
+allsigmas <- c(1,  2,  4,  6,  8, 12, 16, 24, 1,  2,  4,  6,  8,12, 16, 24, 1,  2,  4,  6,  8, 12, 16, 24, 1,  2,  4,  6,  8, 12, 16, 24)
+mframe$sigma <- allsigmas
 ```
 
+Scatterplot with each model as a different color!
+Linear model should be best
 
-t.test vs anova
+NOTE 8 LEVEL ANOVA STILL NOT WORKING
+
+## Visualize!!
 
 ```{r}
-t.stat <- 2*(tfitmod$par[1] - anovafitmod$par[1])
-t.stat # 3.297209
-
-1-pchisq(t.stat, df=5) # 0.654269
+mframe <- as.data.frame(mframe)
+p <- ggplot(mframe, aes(x=mframe$sigma, y=mframe$value, colour=variable)) + geom_point (size=2) + xlab("Sigma Values") + ylab("Mean p-values") 
+p
+     
 ```
 
+The regression model performs best across the sigmas, as evidenced by it's low p-value scores. The eight level anova should perform close to the regression, but there's something wrong with our code. The four level anova performs in between the t-test and the regression. Finally the t-test, as expected, performed worse than either the regression or the four level ANOVA (and should perform worse than the eight-level as well). This all makes sense, as our data is linearly correlated, so a linear regression should fit best, followed by models that break up the data into larger numbers of groups (closer to a linear model). 
+
+It's clearly best to try to fit linear data to a linear model, but when resources are constrained, it seems the best strategy is to fit as many groups as possible. In this case, you need at least four experimental units (four way anova), to detect a significant effect. 
 
 
 
-To evaluate the relative statistical power of regression- and ANOVA-design experiments, simulate 10 random experiments with a regression design and 10 random experiments with a two-level ANOVA-design (really this is a t-test design) for each of eight values for σ (1, 2, 4, 6, 8, 12, 16, 24). 
-
-Let’s say you are able to generate experimental units with x between 0 and 50. Repeat this process for a four- and eight-level ANOVA design (remember you only have 24 experimental units). Use the average p-value from likelihood ratio tests across your monte carlo runs as your metric of statistical power.
-
-
-Data sets of 24 values in a normal distribution with varying sigma values: 
-
-```{r}
-x.1 <- rnorm(24, c(0:50), sd=1)
-length(x.vec)
-x.2 <- rnorm(24, c(0:50), sd=2)
-x.4 <- rnorm(24, c(0:50), sd=4)
-x.6 <- rnorm(24, c(0:50), sd=6)
-x.8 <- rnorm(24, c(0:50), sd=8)
-x.12 <- rnorm(24, c(0:50), sd=12)
-x.16 <- rnorm(24, c(0:50), sd=16)
-x.24 <- rnorm(24, c(0:50), sd=24)
+```{r, include=FALSE}
+# get values for the eight level anova guess:
+x <- c(6.25, 12.5, 18.72, 25, 31.25, 37.5, 43.75, 50)
+y.vec <- rep(NA, 8)
+for (i in 1:length(x)){
+   y[i] <- 10 + 0.4*x[i]
+   y.vec <- y
+}
 ```
-
-
-How does the ANOVA- vs regression-design perform? Does the relative performance of these experimental designs depend on the number of levels in the ANOVA experiment (2, 4, vs. 8)?
