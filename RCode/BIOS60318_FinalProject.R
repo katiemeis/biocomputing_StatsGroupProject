@@ -62,6 +62,23 @@ antibiotic_CI = confint(aov.fit, level = 0.95)
 dimnames(antibiotic_CI)[[1]]=c("Control", "Treatment 1", "Treatment 2", "Treatment 3")
 antibiotic_CI
 
+# 95% Confidence interval of the parameters using Hessian matrix and MLLE
+invHessian_antibiotics = solve(antibioticNll$hessian)
+parameter.std.error_antibiotics = sqrt(diag(invHessian_antibiotics))
+lowerBound_antibiotics = matrix(0, 4, 1)
+upperBound_antibiotics = matrix(0, 4, 1)
+plusMinus_antibiotics = matrix(0, 4, 1)
+crit.value_antibiotics = qt(p = 0.025, df = length(antibioticsData$growth))
+for (i in 1:4){
+  plusMinus_antibiotics[i] = crit.value_antibiotics*parameter.std.error_antibiotics[i]
+  lowerBound_antibiotics[i] = antibioticNll$coefficients[i]-plusMinus_antibiotics[i]
+  upperBound_antibiotics[i] = antibioticNll$coefficients[i]+plusMinus_antibiotics[i]
+}
+antibiotic_CI_MLLE = cbind(lowerBound_antibiotics, upperBound_antibiotics)
+dimnames(antibiotic_CI_MLLE)[[1]] = c("Control", "Treatment 1", "Treatment 2", "Treatment 3")
+antibiotic_CI_MLLE
+
+
 # Boxplot of the data comparing control versus treatment with 95% CI of the means for each group in red
 BoxPlot(antibioticsData$growth, 
         as.factor(antibioticsData$trt), 
@@ -101,6 +118,22 @@ comparison_sugar
 CI_LM = confint(linear.mod)
 dimnames(CI_LM)[[1]]=c("Beta 0", "Beta 1")
 CI_LM
+
+# 95% Confidence interval of the parameters using Hessian matrix and MLLE
+invHessian_sugar = solve(sugarNll$hessian)
+parameter.std.error_sugar = sqrt(diag(invHessian_sugar))
+lowerBound_sugar = matrix(0, 2, 1)
+upperBound_sugar = matrix(0, 2, 1)
+plusMinus_sugar = matrix(0, 2, 1)
+crit.value_sugar = qt(p = 0.025, df = length(sugarData$sugar))
+for (i in 1:2){
+  plusMinus_sugar[i] = crit.value_sugar*parameter.std.error_sugar[i]
+  lowerBound_sugar[i] = sugarNll$coefficients[i]-plusMinus_sugar[i]
+  upperBound_sugar[i] = sugarNll$coefficients[i]+plusMinus_sugar[i]
+}
+sugar_CI_MLLE = cbind(lowerBound_sugar, upperBound_sugar)
+dimnames(sugar_CI_MLLE)[[1]] = c("Intercept", "Slope")
+sugar_CI_MLLE
 
 # Plot the data and fit
 ggplot(sugarData,aes(sugarData$sugar,sugarData$growthSugar))+

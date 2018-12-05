@@ -56,7 +56,7 @@ if (anova == TRUE){
   }
   
   # Optimize the nll function
-  myNll=optim(par=initialGuess,fn=nll,x=x,y=y)
+  myNll=optim(par=initialGuess,fn=nll,x=x,y=y, hessian = TRUE)
   
   # Simple model for nll function
   nllSimple_lin<-function(p,x,y){
@@ -93,6 +93,7 @@ if (anova == TRUE){
   attributes(nllReturns)$pValue = pValue
   attributes(nllReturns)$coefficients = coefficients
   attributes(nllReturns)$sigma = sigma
+  attributes(nllReturns)$hessian = myNll$hessian
   nllReturns = attributes(nllReturns)
   return(nllReturns)
 }
@@ -118,7 +119,7 @@ if (anova == FALSE){
                      slope,
                      1)
   # Optimize the nll function
-  linearFit=optim(par=initialGuess_lin,fn=nllLinear,x=x,y=y)
+  linearFit=optim(par=initialGuess_lin,fn=nllLinear,x=x,y=y,hessian = TRUE)
   
   # Simple model for nll function
   nllSimple_lin<-function(p,x,y){
@@ -133,7 +134,7 @@ if (anova == FALSE){
   simpleGuess_lin=c(firstGuess,1)
   
   # Optimize the simple model
-  simpleFit=optim(par=simpleGuess_lin,fn=nllSimple_lin,x=x,y=y)
+  simpleFit=optim(par=simpleGuess_lin,fn=nllSimple_lin,x=x,y=y, hessian = TRUE)
   
   # Compute the LR statistic
   teststat_lin=2*(simpleFit$value-linearFit$value)
@@ -155,6 +156,7 @@ if (anova == FALSE){
   attributes(nllReturns)$pValue = pValue
   attributes(nllReturns)$coefficients = coefficients
   attributes(nllReturns)$sigma = sigma
+  attributes(nllReturns)$hessian = linearFit$hessian
   nllReturns = attributes(nllReturns)
   return(nllReturns)
 }  
