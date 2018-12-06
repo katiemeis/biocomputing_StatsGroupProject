@@ -1,3 +1,4 @@
+
 ---
 title: "Power Analysis"
 output: html_notebook
@@ -5,8 +6,16 @@ output: html_notebook
 
 # Part 2 Statistical Power Analysis
 
-Creating the models:
+```{r, include=FALSE}
+library(ggplot2)
+library(dplyr)
+library(reshape2)
+```
+
+### Step 1 - build the models
+
 ```{r}
+
 # Null model
 nullmod<- function(p,x,y){
   B0=p[1]
@@ -76,7 +85,7 @@ eightanovamod<-function(p,x,y){
 
 ```
 
-## Now do your for loops!
+### Step 2: Make your for loops!
 
 ```{r}
 # Set up an empty data frame in which to store your p-values for each sigma and model.
@@ -173,12 +182,7 @@ allsigmas <- c(1,  2,  4,  6,  8, 12, 16, 24, 1,  2,  4,  6,  8,12, 16, 24, 1,  
 mframe$sigma <- allsigmas
 ```
 
-Scatterplot with each model as a different color!
-Linear model should be best
-
-NOTE 8 LEVEL ANOVA STILL NOT WORKING
-
-## Visualize!!
+### Step 3: Visualize!!
 
 ```{r}
 mframe <- as.data.frame(mframe)
@@ -187,10 +191,13 @@ p
      
 ```
 
-The regression model performs best across the sigmas, as evidenced by it's low p-value scores. The eight level anova should perform close to the regression, but there's something wrong with our code. The four level anova performs in between the t-test and the regression. Finally the t-test, as expected, performed worse than either the regression or the four level ANOVA (and should perform worse than the eight-level as well). This all makes sense, as our data is linearly correlated, so a linear regression should fit best, followed by models that break up the data into larger numbers of groups (closer to a linear model). 
+### Step 4: Interpret
 
-It's clearly best to try to fit linear data to a linear model, but when resources are constrained, it seems the best strategy is to fit as many groups as possible. In this case, you need at least four experimental units (four way anova), to detect a significant effect. 
+The regression model performs best across the sigmas, as evidenced by it's low p-value scores (see figure above). We originally believed that the eight level anova (Eight.Anova) should perform close to the regression, when in fact it performed the worst out of all four models. The four level anova (Anova) performs in between the t-test (T.test) and the regression. Finally the t-test, as expected, performed worse than either the regression or the four level ANOVA. This all makes sense, as our data is linearly correlated, so a linear regression should fit best.
 
+Upon talking to Stuart, with the eight level ANOVA, we are starting to make finer and finer comparisons. When there's a linear relationship with noise and you split the x finer, the p-values should be high. With fewer groups, as in the four-way ANOVA, the groups shouldn't overlap as much, and the p-values should be lower.
+
+It's clearly best to try to fit linear data to a linear model, but when resources are constrained, it seems the best strategy is to fit as many non-overlapping groups as possible. In this case, you need at least four experimental units (four way anova), to detect a significant signal within the noise. 
 
 
 ```{r, include=FALSE}
