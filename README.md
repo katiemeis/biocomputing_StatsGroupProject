@@ -13,3 +13,7 @@ This repository contains:
 3. A script implementing power analysis to compare ANOVA and linear regression [BIOS60318_FinalProject.R](https://github.com/fjhuizar/biocomputing_StatsGroupProject/blob/master/RCode/BIOS60318_FinalProject.R)
 4. A document with figures and text summarizing findings of the power analysis can be found [here](https://github.com/fjhuizar/biocomputing_StatsGroupProject/blob/master/WriteUps/BIOS60318-FinalProject-Writeup.pdf)
 
+To run the code yourself:
+1. Fork this repository to your own, and clone that repository onto your computer
+2. Open the RCodes folder, and run [BIOS60318_FinalProject.R](https://github.com/fjhuizar/biocomputing_StatsGroupProject/blob/master/RCode/BIOS60318_FinalProject.R)
+
