@@ -1,6 +1,6 @@
 ---
 title: "Power Analysis"
-output: html_document
+output: html_notebook
 ---
 
 # Part 2 Statistical Power Analysis
