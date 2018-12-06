@@ -154,6 +154,8 @@ for (i in 1:length(sigmas)){ # sigma runs
     anova.p[j]<- 1-pchisq(t.statanova, df=degfanova)
     eightanova.p[j]<- 1-pchisq(t.stateightanova, df=degfeightanova)
   }
+  
+  # the mean p values for each of ten monte carlo runs, and each of 8 sigmas into a data frame.
   dfp[,1]<- c(1, 2, 4, 6, 8, 12, 16, 24)
   dfp[i,2] <- mean(reg.p)
   dfp[i,3] <- mean(t.p)
