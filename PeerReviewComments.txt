@@ -1,0 +1,5 @@
+Comments for other group:
+-Add more to the ggplot statements to make the graph more appealing
+-When running ANOVA, "x" is not defined as antibiotic treatment
+-Comment out that code so the whole script runs
+-Consider building matrices using functions instead of manually inputting zeros and 1's
